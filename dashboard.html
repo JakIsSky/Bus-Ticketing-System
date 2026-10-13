@@ -1,0 +1,146 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Dashboard | Bus Ticketing System</title>
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+
+        <aside class="sidebar">
+            <div class="logo">
+                <span class="logo-icon">🚌</span>
+                <h2>Bus Ticketing</h2>
+            </div>
+
+            <nav>
+                <a href="dashboard.html" class="active">▦ Dashboard</a>
+                <a href="bus_management.html">🚌 Buses</a>
+                <a href="route_management.html">⌖ Routes</a>
+                <a href="schedule_management.html">▦ Schedules</a>
+                <a href="passenger_management.html">♟ Passengers</a>
+                <a href="booking.html">▤ Bookings</a>
+                <a href="payment.html">▣ Payments</a>
+                <a href="ticket.html">▤ Tickets</a>
+                <a href="user.html">⚙ Users</a>
+                <a href="report.html">▥ Reports</a>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+
+            <header class="topbar">
+                <div>
+                    <h2>Dashboard</h2>
+                    <p>Bus Ticketing System Management</p>
+                </div>
+
+            </header>
+
+            <section class="welcome">
+                <div>
+                    <h1>Welcome</h1>
+                    <p>Here's an overview of your bus ticketing operations.</p>
+                </div>
+                <span id="currentDate"></span>
+            </section>
+            <section class="stats-grid">
+
+                <div class="stat-card blue">
+                    <div class="stat-icon">🚌</div>
+                    <div> 
+                        <p>Total Buses</p> 
+                        <h2>0</h2> 
+                        <small>Registered buses</small> 
+                    </div>
+                </div>
+
+                <div class="stat-card green">
+                    <div class="stat-icon">⌖</div>
+                    <div> 
+                        <p>Total Routes</p> 
+                        <h2>0</h2> 
+                        <small>Available routes</small> 
+                    </div>
+                </div>
+
+                <div class="stat-card purple">
+                    <div class="stat-icon">▦</div>
+                    <div> 
+                        <p>Today's Schedules</p> 
+                        <h2>0   </h2> 
+                        <small>Scheduled trips</small> 
+                    </div>
+                </div>
+
+                <div class="stat-card orange">
+                    <div class="stat-icon">▤</div>
+                    <div> 
+                        <p>Total Bookings</p> 
+                        <h2>24</h2> 
+                        <small>Sample booking count</small> 
+                    </div>
+                </div>
+
+            </section>
+
+            <section class="content-grid">
+                <div class="panel bookings-panel">
+                    <div class="panel-header">
+                        <h2>Recent Bookings</h2>
+                        <a href="bookings.html">View All →</a>
+                    </div>
+                </div>
+                <div class="panel actions-panel">
+                    <div class="panel-header">
+                        <h2>Quick Actions</h2>
+                    </div>
+
+                    <a href="buses.html" class="action-button blue-action">
+                        <span>🚌</span> Manage Buses <b>→</b>
+                    </a>
+
+                    <a href="routes.html" class="action-button green-action">
+                        <span>⌖</span> Manage Routes <b>→</b>
+                    </a>
+
+                    <a href="schedules.html" class="action-button purple-action">
+                        <span>▦</span> Create Schedule <b>→</b>
+                    </a>
+
+                    <a href="bookings.html" class="action-button orange-action">
+                        <span>▤</span> Manage Bookings <b>→</b>
+                    </a>
+                </div>
+
+            </section>
+
+            <!-- UPCOMING DEPARTURES -->
+            <section class="panel departures-panel">
+                <div class="panel-header">
+                    <h2>Upcoming Departures</h2>
+                    <a href="schedules.html">View Schedules →</a>
+                </div>
+            </section>
+
+            <footer>
+                <p>© 2026 Bus Ticketing System. All rights reserved.</p>
+            </footer>
+
+        </main>
+
+        <script>
+            const dateElement = document.getElementById("currentDate");
+
+            dateElement.textContent = new Date().toLocaleDateString(
+                "en-PH",
+                {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric"
+                }
+            );
+        </script>
+
+    </body>
+</html>
