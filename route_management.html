@@ -2,7 +2,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Dashboard | Bus Ticketing System</title>
+        <title>Route Management | Bus Ticketing System</title>
         <link rel="stylesheet" href="style.css">
     </head>
     <body>
@@ -26,5 +26,360 @@
                 <a href="report.html">▥ Reports</a>
             </nav>
         </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div>
+                    <h1>Route Management</h1>
+                    <p>Manage bus routes, destinations, and fares.</p>
+                </div>
+            </header>
+            <section class="content">
+                <div class="page-heading">
+                    <div>
+                        <h2>Route List</h2>
+                        <p>Add and manage available travel routes.</p>
+                    </div>
+                    <button class="add-btn" onclick="openForm()">
+                        + Add New Route
+                    </button>
+                </div>
+
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <p>Total Routes</p>
+                        <h2 id="totalRoutes">0</h2>
+                    </div>
+                    <div class="summary-card">
+                        <p>Active Routes</p>
+                        <h2 id="activeRoutes">0</h2>
+                    </div>
+                    <div class="summary-card">
+                        <p>Inactive Routes</p>
+                        <h2 id="inactiveRoutes">0</h2>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <div class="table-toolbar">
+                        <input
+                            type="search"
+                            id="searchInput"
+                            placeholder="Search route code, origin, destination..."
+                            oninput="renderRoutes()"
+                        >
+
+                        <select id="statusFilter" onchange="renderRoutes()">
+                            <option value="">All Status</option>
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
+
+                    <div class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Route ID</th>
+                                    <th>Route Code</th>
+                                    <th>Origin</th>
+                                    <th>Destination</th>
+                                    <th>Distance (km)</th>
+                                    <th>Duration</th>
+                                    <th>Fare (₱)</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="routeTableBody"></tbody>
+                        </table>
+                    </div>
+
+                    <p id="emptyMessage" class="empty-message">
+                        No routes found. Click "Add New Route" to get started.
+                    </p>
+                </div>
+            </section>
+        </main>
+
+        <!-- Add/Edit Route Modal -->
+        <div class="modal" id="routeModal">
+            <div class="modal-content">
+                <div class="modal-heading">
+                    <h2 id="formTitle">Add New Route</h2>
+                    <button type="button" class="close-btn"
+                        onclick="closeForm()">×</button>
+                </div>
+
+                <form id="routeForm">
+                    <input type="hidden" id="routeId">
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="routeCode">Route Code</label>
+                            <input type="text" id="routeCode"
+                                placeholder="e.g. RT-001" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="origin">Origin</label>
+                            <input type="text" id="origin"
+                                placeholder="Starting location" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="destination">Destination</label>
+                            <input type="text" id="destination"
+                                placeholder="End location" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="distance">Distance (km)</label>
+                            <input type="number" id="distance"
+                                min="0.1" step="0.1"
+                                placeholder="e.g. 120" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="duration">Estimated Duration</label>
+                            <input type="text" id="duration"
+                                placeholder="e.g. 3 hours 30 minutes" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="fare">Fare (₱)</label>
+                            <input type="number" id="fare"
+                                min="0" step="0.01"
+                                placeholder="e.g. 250.00" required>
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label for="routeStatus">Status</label>
+                            <select id="routeStatus" required>
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="cancel-btn"
+                            onclick="closeForm()">Cancel</button>
+                        <button type="submit" class="save-btn">Save Route</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script>
+            // Temporary sample records for demonstration.
+            let routes = [
+                {
+                    id: 1,
+                    code: "RT-001",
+                    origin: "Bagabag",
+                    destination: "Solano",
+                    distance: 25,
+                    duration: "45 minutes",
+                    fare: 80,
+                    status: "Active"
+                },
+                {
+                    id: 2,
+                    code: "RT-002",
+                    origin: "Solano",
+                    destination: "Bayombong",
+                    distance: 15,
+                    duration: "30 minutes",
+                    fare: 60,
+                    status: "Active"
+                },
+                {
+                    id: 3,
+                    code: "RT-003",
+                    origin: "Bayombong",
+                    destination: "Santiago City",
+                    distance: 65,
+                    duration: "1 hour 45 minutes",
+                    fare: 180,
+                    status: "Inactive"
+                }
+            ];
+
+            let nextId = 4;
+
+            function renderRoutes() {
+                const tbody = document.getElementById("routeTableBody");
+                const search = document.getElementById("searchInput")
+                    .value.toLowerCase().trim();
+                const filter = document.getElementById("statusFilter").value;
+
+                const filteredRoutes = routes.filter(route => {
+                    const matchesSearch = [
+                        route.code,
+                        route.origin,
+                        route.destination,
+                        route.duration
+                    ].some(value => value.toLowerCase().includes(search));
+
+                    return matchesSearch &&
+                        (filter === "" || route.status === filter);
+                });
+
+                tbody.innerHTML = "";
+
+                filteredRoutes.forEach(route => {
+                    const row = document.createElement("tr");
+
+                    const values = [
+                        route.id,
+                        route.code,
+                        route.origin,
+                        route.destination,
+                        route.distance,
+                        route.duration,
+                        Number(route.fare).toLocaleString("en-PH", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        })
+                    ];
+
+                    values.forEach(value => {
+                        const cell = document.createElement("td");
+                        cell.textContent = value;
+                        row.appendChild(cell);
+                    });
+
+                    const statusCell = document.createElement("td");
+                    const badge = document.createElement("span");
+                    badge.className = "status " + route.status.toLowerCase();
+                    badge.textContent = route.status;
+                    statusCell.appendChild(badge);
+                    row.appendChild(statusCell);
+
+                    const actions = document.createElement("td");
+                    actions.className = "actions";
+
+                    const editButton = document.createElement("button");
+                    editButton.textContent = "Edit";
+                    editButton.className = "edit-btn";
+                    editButton.onclick = () => editRoute(route.id);
+
+                    const deleteButton = document.createElement("button");
+                    deleteButton.textContent = "Delete";
+                    deleteButton.className = "delete-btn";
+                    deleteButton.onclick = () => deleteRoute(route.id);
+
+                    actions.append(editButton, deleteButton);
+                    row.appendChild(actions);
+                    tbody.appendChild(row);
+                });
+
+                document.getElementById("emptyMessage").style.display =
+                    filteredRoutes.length === 0 ? "block" : "none";
+
+                document.getElementById("totalRoutes").textContent =
+                    routes.length;
+
+                document.getElementById("activeRoutes").textContent =
+                    routes.filter(route => route.status === "Active").length;
+
+                document.getElementById("inactiveRoutes").textContent =
+                    routes.filter(route => route.status === "Inactive").length;
+            }
+
+            function openForm() {
+                document.getElementById("routeForm").reset();
+                document.getElementById("routeId").value = "";
+                document.getElementById("formTitle").textContent = "Add New Route";
+                document.getElementById("routeModal").style.display = "flex";
+            }
+
+            function closeForm() {
+                document.getElementById("routeModal").style.display = "none";
+            }
+
+            document.getElementById("routeForm")
+                .addEventListener("submit", function(event) {
+                    event.preventDefault();
+
+                    const id = document.getElementById("routeId").value;
+
+                    const route = {
+                        code: document.getElementById("routeCode")
+                            .value.trim(),
+                        origin: document.getElementById("origin")
+                            .value.trim(),
+                        destination: document.getElementById("destination")
+                            .value.trim(),
+                        distance: Number(
+                            document.getElementById("distance").value
+                        ),
+                        duration: document.getElementById("duration")
+                            .value.trim(),
+                        fare: Number(document.getElementById("fare").value),
+                        status: document.getElementById("routeStatus").value
+                    };
+
+                    if (route.origin.toLowerCase() ===
+                        route.destination.toLowerCase()) {
+                        alert("Origin and destination must be different.");
+                        return;
+                    }
+
+                    if (routes.some(item =>
+                        item.code.toLowerCase() === route.code.toLowerCase() &&
+                        String(item.id) !== id
+                    )) {
+                        alert("Route code already exists.");
+                        return;
+                    }
+
+                    if (id) {
+                        const index = routes.findIndex(
+                            item => item.id === Number(id)
+                        );
+
+                        if (index !== -1) {
+                            routes[index] = { id: Number(id), ...route };
+                        }
+                    } else {
+                        routes.push({ id: nextId++, ...route });
+                    }
+
+                    renderRoutes();
+                    closeForm();
+                });
+
+            function editRoute(id) {
+                const route = routes.find(item => item.id === id);
+                if (!route) return;
+
+                document.getElementById("routeId").value = route.id;
+                document.getElementById("routeCode").value = route.code;
+                document.getElementById("origin").value = route.origin;
+                document.getElementById("destination").value = route.destination;
+                document.getElementById("distance").value = route.distance;
+                document.getElementById("duration").value = route.duration;
+                document.getElementById("fare").value = route.fare;
+                document.getElementById("routeStatus").value = route.status;
+
+                document.getElementById("formTitle").textContent = "Edit Route";
+                document.getElementById("routeModal").style.display = "flex";
+            }
+
+            function deleteRoute(id) {
+                const route = routes.find(item => item.id === id);
+                if (!route) return;
+
+                if (confirm("Delete route " + route.code + "?")) {
+                    routes = routes.filter(item => item.id !== id);
+                    renderRoutes();
+                }
+            }
+
+            renderRoutes();
+        </script>
+
     </body>
 </html>

@@ -1,360 +1,356 @@
-
-<!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bus Management | Bus Ticketing System</title>
-    <link rel="stylesheet" href="buses.css">
-</head>
-<body>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Bus Management | Bus Ticketing System</title>
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
 
-    <aside class="sidebar">
-        <h2>BusTicket</h2>
-        <p class="menu-label">MAIN MENU</p>
-
-        <nav>
-            <a href="dashboard.html">Dashboard</a>
-            <a href="buses.html" class="active">Bus Management</a>
-            <a href="routes.html">Route Management</a>
-            <a href="schedules.html">Schedules</a>
-            <a href="passengers.html">Passengers</a>
-            <a href="bookings.html">Bookings</a>
-            <a href="payments.html">Payments</a>
-            <a href="tickets.html">Tickets</a>
-            <a href="users.html">Users</a>
-            <a href="reports.html">Reports</a>
-        </nav>
-
-        <a href="login.html" class="logout">Logout</a>
-    </aside>
-
-    <main class="main-content">
-        <header class="topbar">
-            <div>
-                <h1>Bus Management</h1>
-                <p>Manage and monitor your buses.</p>
+        <aside class="sidebar">
+            <div class="logo">
+                <span class="logo-icon">🚌</span>
+                <h2>Bus Ticketing</h2>
             </div>
-            <div class="admin">Administrator</div>
-        </header>
 
-        <section class="content">
-            <div class="page-heading">
+            <nav>
+                <a href="dashboard.html" class="active">▦ Dashboard</a>
+                <a href="bus_management.html">🚌 Buses</a>
+                <a href="route_management.html">⌖ Routes</a>
+                <a href="schedule_management.html">▦ Schedules</a>
+                <a href="passenger_management.html">♟ Passengers</a>
+                <a href="booking.html">▤ Bookings</a>
+                <a href="payment.html">▣ Payments</a>
+                <a href="ticket.html">▤ Tickets</a>
+                <a href="user.html">⚙ Users</a>
+                <a href="report.html">▥ Reports</a>
+                </nav>
+        </aside>
+        <main class="main-content">
+            <header class="topbar">
                 <div>
-                    <h2>Bus List</h2>
-                    <p>View, add, edit, and manage buses.</p>
+                    <h2>Bus Management</h2>
+                    <p>Manage and monitor your buses.</p>
                 </div>
-                <button class="add-btn" onclick="openForm()">
-                    + Add New Bus
-                </button>
-            </div>
+            </header>
 
-            <div class="summary-cards">
-                <div class="summary-card">
-                    <p>Total Buses</p>
-                    <h2 id="totalBuses">0</h2>
-                </div>
-                <div class="summary-card">
-                    <p>Active Buses</p>
-                    <h2 id="activeBuses">0</h2>
-                </div>
-                <div class="summary-card">
-                    <p>Maintenance</p>
-                    <h2 id="maintenanceBuses">0</h2>
-                </div>
-            </div>
-
-            <div class="table-container">
-                <div class="table-toolbar">
-                    <input
-                        type="search"
-                        id="searchInput"
-                        placeholder="Search bus number, plate, brand..."
-                        oninput="renderBuses()"
-                    >
-
-                    <select id="statusFilter" onchange="renderBuses()">
-                        <option value="">All Status</option>
-                        <option value="Active">Active</option>
-                        <option value="Maintenance">Maintenance</option>
-                        <option value="Inactive">Inactive</option>
-                    </select>
+            <section class="content">
+                <div class="page-heading">
+                    <div>
+                        <h2>Bus List</h2>
+                        <p>View, add, edit, and manage buses.</p>
+                    </div>
+                    <button class="add-btn" onclick="openForm()">
+                        + Add New Bus
+                    </button>
                 </div>
 
-                <div class="table-scroll">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Bus ID</th>
-                                <th>Bus Number</th>
-                                <th>Plate Number</th>
-                                <th>Bus Type</th>
-                                <th>Brand / Model</th>
-                                <th>Capacity</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="busTableBody"></tbody>
-                    </table>
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <p>Total Buses</p>
+                        <h2 id="totalBuses">0</h2>
+                    </div>
+                    <div class="summary-card">
+                        <p>Active Buses</p>
+                        <h2 id="activeBuses">0</h2>
+                    </div>
+                    <div class="summary-card">
+                        <p>Maintenance</p>
+                        <h2 id="maintenanceBuses">0</h2>
+                    </div>
                 </div>
 
-                <p id="emptyMessage" class="empty-message">
-                    No buses found. Click "Add New Bus" to get started.
-                </p>
-            </div>
-        </section>
-    </main>
+                <div class="table-container">
+                    <div class="table-toolbar">
+                        <input
+                            type="search"
+                            id="searchInput"
+                            placeholder="Search bus number, plate, brand..."
+                            oninput="renderBuses()"
+                        >
 
-    <!-- Add/Edit Bus Form -->
-    <div class="modal" id="busModal">
-        <div class="modal-content">
-            <div class="modal-heading">
-                <h2 id="formTitle">Add New Bus</h2>
-                <button class="close-btn" onclick="closeForm()">×</button>
-            </div>
-
-            <form id="busForm">
-                <input type="hidden" id="busId">
-
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="busNumber">Bus Number</label>
-                        <input id="busNumber" type="text"
-                               placeholder="e.g. BUS-001" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="plateNumber">Plate Number</label>
-                        <input id="plateNumber" type="text"
-                               placeholder="e.g. ABC-1234" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="busType">Bus Type</label>
-                        <select id="busType" required>
-                            <option value="">Select bus type</option>
-                            <option value="Ordinary">Ordinary</option>
-                            <option value="Air-conditioned">Air-conditioned</option>
-                            <option value="Deluxe">Deluxe</option>
-                            <option value="Sleeper">Sleeper</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="brand">Brand</label>
-                        <input id="brand" type="text"
-                               placeholder="e.g. Isuzu" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="model">Model</label>
-                        <input id="model" type="text"
-                               placeholder="Enter bus model" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="capacity">Seating Capacity</label>
-                        <input id="capacity" type="number"
-                               min="1" placeholder="e.g. 45" required>
-                    </div>
-
-                    <div class="form-group full-width">
-                        <label for="busStatus">Status</label>
-                        <select id="busStatus" required>
+                        <select id="statusFilter" onchange="renderBuses()">
+                            <option value="">All Status</option>
                             <option value="Active">Active</option>
                             <option value="Maintenance">Maintenance</option>
                             <option value="Inactive">Inactive</option>
                         </select>
                     </div>
+
+                    <div class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Bus ID</th>
+                                    <th>Bus Number</th>
+                                    <th>Plate Number</th>
+                                    <th>Bus Type</th>
+                                    <th>Brand / Model</th>
+                                    <th>Capacity</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="busTableBody"></tbody>
+                        </table>
+                    </div>
+
+                    <p id="emptyMessage" class="empty-message">
+                        No buses found. Click "Add New Bus" to get started.
+                    </p>
+                </div>
+            </section>
+        </main>
+
+        <!-- Add/Edit Bus Form -->
+        <div class="modal" id="busModal">
+            <div class="modal-content">
+                <div class="modal-heading">
+                    <h2 id="formTitle">Add New Bus</h2>
+                    <button class="close-btn" onclick="closeForm()">×</button>
                 </div>
 
-                <div class="form-actions">
-                    <button type="button" class="cancel-btn"
-                            onclick="closeForm()">Cancel</button>
-                    <button type="submit" class="save-btn">Save Bus</button>
-                </div>
-            </form>
+                <form id="busForm">
+                    <input type="hidden" id="busId">
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="busNumber">Bus Number</label>
+                            <input id="busNumber" type="text"
+                                placeholder="e.g. BUS-001" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="plateNumber">Plate Number</label>
+                            <input id="plateNumber" type="text"
+                                placeholder="e.g. ABC-1234" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="busType">Bus Type</label>
+                            <select id="busType" required>
+                                <option value="">Select bus type</option>
+                                <option value="Ordinary">Ordinary</option>
+                                <option value="Air-conditioned">Air-conditioned</option>
+                                <option value="Deluxe">Deluxe</option>
+                                <option value="Sleeper">Sleeper</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="brand">Brand</label>
+                            <input id="brand" type="text"
+                                placeholder="e.g. Isuzu" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="model">Model</label>
+                            <input id="model" type="text"
+                                placeholder="Enter bus model" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="capacity">Seating Capacity</label>
+                            <input id="capacity" type="number"
+                                min="1" placeholder="e.g. 45" required>
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label for="busStatus">Status</label>
+                            <select id="busStatus" required>
+                                <option value="Active">Active</option>
+                                <option value="Maintenance">Maintenance</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="cancel-btn"
+                                onclick="closeForm()">Cancel</button>
+                        <button type="submit" class="save-btn">Save Bus</button>
+                    </div>
+                </form>
+            </div>
         </div>
-    </div>
 
-    <script>
-        // Temporary sample data. Replace with MySQL API data later.
-        let buses = [
-            {
-                id: 1,
-                number: "BUS-001",
-                plate: "ABC-1234",
-                type: "Air-conditioned",
-                brand: "Isuzu",
-                model: "LV123",
-                capacity: 45,
-                status: "Active"
-            },
-            {
-                id: 2,
-                number: "BUS-002",
-                plate: "XYZ-5678",
-                type: "Ordinary",
-                brand: "Hino",
-                model: "RM2",
-                capacity: 50,
-                status: "Maintenance"
-            }
-        ];
+        <script>
+            // Temporary sample data. Replace with MySQL API data later.
+            let buses = [
+                {
+                    id: 1,
+                    number: "BUS-001",
+                    plate: "ABC-1234",
+                    type: "Air-conditioned",
+                    brand: "Isuzu",
+                    model: "LV123",
+                    capacity: 45,
+                    status: "Active"
+                },
+                {
+                    id: 2,
+                    number: "BUS-002",
+                    plate: "XYZ-5678",
+                    type: "Ordinary",
+                    brand: "Hino",
+                    model: "RM2",
+                    capacity: 50,
+                    status: "Maintenance"
+                }
+            ];
 
-        let nextId = 3;
+            let nextId = 3;
 
-        function renderBuses() {
-            const tbody = document.getElementById("busTableBody");
-            const search = document.getElementById("searchInput")
-                .value.toLowerCase().trim();
-            const filter = document.getElementById("statusFilter").value;
+            function renderBuses() {
+                const tbody = document.getElementById("busTableBody");
+                const search = document.getElementById("searchInput")
+                    .value.toLowerCase().trim();
+                const filter = document.getElementById("statusFilter").value;
 
-            const filteredBuses = buses.filter(bus => {
-                const matchesSearch = [
-                    bus.number, bus.plate, bus.type,
-                    bus.brand, bus.model
-                ].some(value => value.toLowerCase().includes(search));
+                const filteredBuses = buses.filter(bus => {
+                    const matchesSearch = [
+                        bus.number, bus.plate, bus.type,
+                        bus.brand, bus.model
+                    ].some(value => value.toLowerCase().includes(search));
 
-                return matchesSearch &&
-                    (filter === "" || bus.status === filter);
-            });
-
-            tbody.innerHTML = "";
-
-            filteredBuses.forEach(bus => {
-                const row = document.createElement("tr");
-
-                const values = [
-                    bus.id, bus.number, bus.plate, bus.type,
-                    bus.brand + " / " + bus.model, bus.capacity
-                ];
-
-                values.forEach(value => {
-                    const cell = document.createElement("td");
-                    cell.textContent = value;
-                    row.appendChild(cell);
+                    return matchesSearch &&
+                        (filter === "" || bus.status === filter);
                 });
 
-                const statusCell = document.createElement("td");
-                const badge = document.createElement("span");
-                badge.className = "status " + bus.status.toLowerCase();
-                badge.textContent = bus.status;
-                statusCell.appendChild(badge);
-                row.appendChild(statusCell);
+                tbody.innerHTML = "";
 
-                const actions = document.createElement("td");
-                actions.className = "actions";
+                filteredBuses.forEach(bus => {
+                    const row = document.createElement("tr");
 
-                const editButton = document.createElement("button");
-                editButton.textContent = "Edit";
-                editButton.className = "edit-btn";
-                editButton.onclick = () => editBus(bus.id);
+                    const values = [
+                        bus.id, bus.number, bus.plate, bus.type,
+                        bus.brand + " / " + bus.model, bus.capacity
+                    ];
 
-                const deleteButton = document.createElement("button");
-                deleteButton.textContent = "Delete";
-                deleteButton.className = "delete-btn";
-                deleteButton.onclick = () => deleteBus(bus.id);
+                    values.forEach(value => {
+                        const cell = document.createElement("td");
+                        cell.textContent = value;
+                        row.appendChild(cell);
+                    });
 
-                actions.append(editButton, deleteButton);
-                row.appendChild(actions);
-                tbody.appendChild(row);
+                    const statusCell = document.createElement("td");
+                    const badge = document.createElement("span");
+                    badge.className = "status " + bus.status.toLowerCase();
+                    badge.textContent = bus.status;
+                    statusCell.appendChild(badge);
+                    row.appendChild(statusCell);
+
+                    const actions = document.createElement("td");
+                    actions.className = "actions";
+
+                    const editButton = document.createElement("button");
+                    editButton.textContent = "Edit";
+                    editButton.className = "edit-btn";
+                    editButton.onclick = () => editBus(bus.id);
+
+                    const deleteButton = document.createElement("button");
+                    deleteButton.textContent = "Delete";
+                    deleteButton.className = "delete-btn";
+                    deleteButton.onclick = () => deleteBus(bus.id);
+
+                    actions.append(editButton, deleteButton);
+                    row.appendChild(actions);
+                    tbody.appendChild(row);
+                });
+
+                document.getElementById("emptyMessage").style.display =
+                    filteredBuses.length === 0 ? "block" : "none";
+
+                document.getElementById("totalBuses").textContent = buses.length;
+                document.getElementById("activeBuses").textContent =
+                    buses.filter(bus => bus.status === "Active").length;
+                document.getElementById("maintenanceBuses").textContent =
+                    buses.filter(bus => bus.status === "Maintenance").length;
+            }
+
+            function openForm() {
+                document.getElementById("busForm").reset();
+                document.getElementById("busId").value = "";
+                document.getElementById("formTitle").textContent = "Add New Bus";
+                document.getElementById("busModal").style.display = "flex";
+            }
+
+            function closeForm() {
+                document.getElementById("busModal").style.display = "none";
+            }
+
+            document.getElementById("busForm").addEventListener("submit", function(event) {
+                event.preventDefault();
+
+                const id = document.getElementById("busId").value;
+                const bus = {
+                    number: document.getElementById("busNumber").value.trim(),
+                    plate: document.getElementById("plateNumber").value.trim(),
+                    type: document.getElementById("busType").value,
+                    brand: document.getElementById("brand").value.trim(),
+                    model: document.getElementById("model").value.trim(),
+                    capacity: Number(document.getElementById("capacity").value),
+                    status: document.getElementById("busStatus").value
+                };
+
+                if (buses.some(item =>
+                    item.number.toLowerCase() === bus.number.toLowerCase() &&
+                    String(item.id) !== id
+                )) {
+                    alert("Bus number already exists.");
+                    return;
+                }
+
+                if (buses.some(item =>
+                    item.plate.toLowerCase() === bus.plate.toLowerCase() &&
+                    String(item.id) !== id
+                )) {
+                    alert("Plate number already exists.");
+                    return;
+                }
+
+                if (id) {
+                    const index = buses.findIndex(item => item.id === Number(id));
+                    if (index !== -1) {
+                        buses[index] = { id: Number(id), ...bus };
+                    }
+                } else {
+                    buses.push({ id: nextId++, ...bus });
+                }
+
+                renderBuses();
+                closeForm();
             });
 
-            document.getElementById("emptyMessage").style.display =
-                filteredBuses.length === 0 ? "block" : "none";
+            function editBus(id) {
+                const bus = buses.find(item => item.id === id);
+                if (!bus) return;
 
-            document.getElementById("totalBuses").textContent = buses.length;
-            document.getElementById("activeBuses").textContent =
-                buses.filter(bus => bus.status === "Active").length;
-            document.getElementById("maintenanceBuses").textContent =
-                buses.filter(bus => bus.status === "Maintenance").length;
-        }
+                document.getElementById("busId").value = bus.id;
+                document.getElementById("busNumber").value = bus.number;
+                document.getElementById("plateNumber").value = bus.plate;
+                document.getElementById("busType").value = bus.type;
+                document.getElementById("brand").value = bus.brand;
+                document.getElementById("model").value = bus.model;
+                document.getElementById("capacity").value = bus.capacity;
+                document.getElementById("busStatus").value = bus.status;
 
-        function openForm() {
-            document.getElementById("busForm").reset();
-            document.getElementById("busId").value = "";
-            document.getElementById("formTitle").textContent = "Add New Bus";
-            document.getElementById("busModal").style.display = "flex";
-        }
-
-        function closeForm() {
-            document.getElementById("busModal").style.display = "none";
-        }
-
-        document.getElementById("busForm").addEventListener("submit", function(event) {
-            event.preventDefault();
-
-            const id = document.getElementById("busId").value;
-            const bus = {
-                number: document.getElementById("busNumber").value.trim(),
-                plate: document.getElementById("plateNumber").value.trim(),
-                type: document.getElementById("busType").value,
-                brand: document.getElementById("brand").value.trim(),
-                model: document.getElementById("model").value.trim(),
-                capacity: Number(document.getElementById("capacity").value),
-                status: document.getElementById("busStatus").value
-            };
-
-            if (buses.some(item =>
-                item.number.toLowerCase() === bus.number.toLowerCase() &&
-                String(item.id) !== id
-            )) {
-                alert("Bus number already exists.");
-                return;
+                document.getElementById("formTitle").textContent = "Edit Bus";
+                document.getElementById("busModal").style.display = "flex";
             }
 
-            if (buses.some(item =>
-                item.plate.toLowerCase() === bus.plate.toLowerCase() &&
-                String(item.id) !== id
-            )) {
-                alert("Plate number already exists.");
-                return;
-            }
+            function deleteBus(id) {
+                const bus = buses.find(item => item.id === id);
+                if (!bus) return;
 
-            if (id) {
-                const index = buses.findIndex(item => item.id === Number(id));
-                if (index !== -1) {
-                    buses[index] = { id: Number(id), ...bus };
+                if (confirm("Are you sure you want to delete " + bus.number + "?")) {
+                    buses = buses.filter(item => item.id !== id);
+                    renderBuses();
                 }
-            } else {
-                buses.push({ id: nextId++, ...bus });
             }
 
             renderBuses();
-            closeForm();
-        });
+        </script>
 
-        function editBus(id) {
-            const bus = buses.find(item => item.id === id);
-            if (!bus) return;
-
-            document.getElementById("busId").value = bus.id;
-            document.getElementById("busNumber").value = bus.number;
-            document.getElementById("plateNumber").value = bus.plate;
-            document.getElementById("busType").value = bus.type;
-            document.getElementById("brand").value = bus.brand;
-            document.getElementById("model").value = bus.model;
-            document.getElementById("capacity").value = bus.capacity;
-            document.getElementById("busStatus").value = bus.status;
-
-            document.getElementById("formTitle").textContent = "Edit Bus";
-            document.getElementById("busModal").style.display = "flex";
-        }
-
-        function deleteBus(id) {
-            const bus = buses.find(item => item.id === id);
-            if (!bus) return;
-
-            if (confirm("Are you sure you want to delete " + bus.number + "?")) {
-                buses = buses.filter(item => item.id !== id);
-                renderBuses();
-            }
-        }
-
-        renderBuses();
-    </script>
-
-</body>
+    </body>
 </html>
