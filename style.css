@@ -565,7 +565,255 @@ tbody tr:hover {
     padding: 25px 10px;
     font-size: 14px;
 }
+.schedule-container {
+    background-color: #ffffff;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
+}
 
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    gap: 15px;
+}
+
+.section-header h2 {
+    margin-bottom: 8px;
+    font-size: 22px;
+}
+.add-btn {
+    text-decoration: none;
+    background-color: #2563eb;
+    color: #ffffff;
+    padding: 12px 18px;
+    border-radius: 7px;
+    font-size: 14px;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.add-btn:hover {
+    background-color: #1d4ed8;
+}
+.filters {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 25px;
+}
+
+.filters input,
+.filters select {
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #d9e0eb;
+    border-radius: 7px;
+    outline: none;
+    font-size: 13px;
+}
+
+.filters input[type="text"] {
+    flex: 2;
+}
+
+.filters input[type="date"],
+.filters select {
+    flex: 1;
+}
+
+.filters input:focus,
+.filters select:focus {
+    border-color: #2563eb;
+}
+
+.filters button {
+    background-color: #172b4d;
+    color: #ffffff;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 7px;
+    cursor: pointer;
+}
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    white-space: nowrap;
+}
+
+thead {
+    background-color: #f1f5f9;
+}
+
+th {
+    color: #475569;
+    font-size: 12px;
+    text-align: left;
+    padding: 16px 14px;
+    text-transform: uppercase;
+}
+
+td {
+    padding: 18px 14px;
+    border-bottom: 1px solid #edf0f5;
+    font-size: 13px;
+}
+
+tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+/* Status Labels */
+
+.status {
+    display: inline-block;
+    padding: 7px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.scheduled {
+    color: #1d4ed8;
+    background-color: #dbeafe;
+}
+
+.ongoing {
+    color: #b45309;
+    background-color: #fef3c7;
+}
+
+.completed {
+    color: #15803d;
+    background-color: #dcfce7;
+}
+
+/* Actions */
+
+.edit {
+    text-decoration: none;
+    color: #2563eb;
+    font-weight: bold;
+}
+
+.edit:hover {
+    text-decoration: underline;
+}
+
+/* Table Footer */
+
+.table-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    margin-top: 25px;
+    color: #718096;
+    font-size: 13px;
+}
+
+.table-footer button {
+    padding: 9px 12px;
+    border: 1px solid #d9e0eb;
+    border-radius: 5px;
+    background-color: #ffffff;
+    margin-left: 4px;
+}
+
+.table-footer button:disabled {
+    color: #a0aec0;
+    cursor: not-allowed;
+}
+
+.table-footer .current-page {
+    background-color: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+}
+
+/* Responsive Layout */
+
+@media (max-width: 1100px) {
+    .summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .filters {
+        flex-wrap: wrap;
+    }
+
+    .filters input,
+    .filters select {
+        flex: 1 1 180px;
+    }
+}
+
+@media (max-width: 700px) {
+    .sidebar {
+        position: static;
+        width: 100%;
+        height: auto;
+        padding: 20px;
+    }
+
+    .sidebar h2 {
+        margin-bottom: 20px;
+    }
+
+    .sidebar nav {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .sidebar nav a {
+        padding: 10px;
+    }
+
+    .main-content {
+        margin-left: 0;
+        padding: 18px;
+    }
+
+    .topbar,
+    .section-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .summary {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .summary-card {
+        padding: 18px;
+    }
+
+    .schedule-container {
+        padding: 16px;
+    }
+
+    .filters {
+        flex-direction: column;
+    }
+
+    .filters input,
+    .filters select,
+    .filters button {
+        width: 100%;
+    }
+
+    .table-footer {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
 /* Modal form */
 .modal {
     display: none;
