@@ -117,7 +117,8 @@
         </div>
 
         <script>
-            let courses = [
+            // Load courses from localStorage or use default mock data if empty
+            let courses = JSON.parse(localStorage.getItem("courses")) || [
                 { id: 1, code: "BSIT", name: "Bachelor of Science in Information Technology" },
                 { id: 2, code: "BSBA", name: "Bachelor of Science in Business Administration" },
                 { id: 3, code: "BSEED", name: "Bachelor of Science in Elementary Education" },
@@ -125,7 +126,10 @@
                 { id: 5, code: "BEED", name: "Bachelor of Elementary Education" }
             ];
 
-            let nextCourseId = 6;
+            // Helper to persist courses
+            function saveCoursesToStorage() {
+                localStorage.setItem("courses", JSON.stringify(courses));
+            }
 
             function renderCourses() {
                 const tbody = document.getElementById("courseTableBody");
@@ -198,9 +202,12 @@
                         courses[index] = { id: Number(id), code, name };
                     }
                 } else {
-                    courses.push({ id: nextCourseId++, code, name });
+                    // Automatically determine next ID based on existing items
+                    const nextId = courses.length > 0 ? Math.max(...courses.map(c => c.id)) + 1 : 1;
+                    courses.push({ id: nextId, code, name });
                 }
 
+                saveCoursesToStorage();
                 renderCourses();
                 closeCourseForm();
             });
@@ -223,6 +230,7 @@
 
                 if (confirm("Are you sure you want to delete " + course.code + "?")) {
                     courses = courses.filter(item => item.id !== id);
+                    saveCoursesToStorage();
                     renderCourses();
                 }
             }

@@ -163,8 +163,8 @@
         </div>
 
         <script>
-            // Shared mock database matching MySQL tables (courses and passengers)
-            let courses = [
+            // Load shared courses from localStorage
+            let courses = JSON.parse(localStorage.getItem("courses")) || [
                 { id: 1, code: "BSIT", name: "Bachelor of Science in Information Technology" },
                 { id: 2, code: "BSBA", name: "Bachelor of Science in Business Administration" },
                 { id: 3, code: "BSEED", name: "Bachelor of Science in Elementary Education" },
@@ -172,7 +172,7 @@
                 { id: 5, code: "BEED", name: "Bachelor of Elementary Education" }
             ];
 
-            let passengers = [
+            let passengers = JSON.parse(localStorage.getItem("passengers")) || [
                 {
                     id: 1,
                     number: "PSG-0001",
@@ -180,7 +180,7 @@
                     lastName: "Dela Cruz",
                     contact: "09171234567",
                     email: "juan@example.com",
-                    courseId: 1, // BSIT
+                    courseId: 1,
                     status: "Active"
                 },
                 {
@@ -190,15 +190,18 @@
                     lastName: "Santos",
                     contact: "09181234567",
                     email: "maria@example.com",
-                    courseId: 2, // BSBA
+                    courseId: 2,
                     status: "Active"
                 }
             ];
 
-            let nextPassengerId = 3;
+            function savePassengersToStorage() {
+                localStorage.setItem("passengers", JSON.stringify(passengers));
+            }
 
-            // Step 4: Populate the Course dropdown dynamically
+            // Refresh courses from localStorage and populate dropdown dynamically
             function loadCourseDropdown() {
+                courses = JSON.parse(localStorage.getItem("courses")) || courses;
                 const select = document.getElementById("passengerCourse");
                 select.innerHTML = '<option value="">Select a course</option>';
                 courses.forEach(course => {
@@ -210,6 +213,7 @@
             }
 
             function renderPassengers() {
+                courses = JSON.parse(localStorage.getItem("courses")) || courses;
                 const tbody = document.getElementById("passengerTableBody");
                 const search = document.getElementById("searchPassengerInput").value.toLowerCase().trim();
                 const filter = document.getElementById("statusFilter").value;
@@ -230,7 +234,6 @@
                 filteredPassengers.forEach(p => {
                     const row = document.createElement("tr");
 
-                    // Basic details cells
                     const courseObj = courses.find(c => c.id === p.courseId);
                     const values = [
                         p.id,
@@ -238,7 +241,7 @@
                         p.firstName + " " + p.lastName,
                         p.contact,
                         p.email || "N/A",
-                        courseObj ? courseObj.code : "N/A" // Step 6: Display Course Information
+                        courseObj ? courseObj.code : "N/A"
                     ];
 
                     values.forEach(val => {
@@ -247,7 +250,6 @@
                         row.appendChild(cell);
                     });
 
-                    // Status Badge
                     const statusCell = document.createElement("td");
                     const badge = document.createElement("span");
                     badge.className = "status " + p.status.toLowerCase();
@@ -255,7 +257,6 @@
                     statusCell.appendChild(badge);
                     row.appendChild(statusCell);
 
-                    // Actions
                     const actions = document.createElement("td");
                     actions.className = "actions";
 
@@ -301,7 +302,7 @@
                     lastName: document.getElementById("lastName").value.trim(),
                     contact: document.getElementById("contactNumber").value.trim(),
                     email: document.getElementById("email").value.trim(),
-                    courseId: Number(document.getElementById("passengerCourse").value), // Step 5: Save Selected Course
+                    courseId: Number(document.getElementById("passengerCourse").value),
                     status: document.getElementById("passengerStatus").value
                 };
 
@@ -316,9 +317,11 @@
                         passengers[index] = { id: Number(id), ...passengerData };
                     }
                 } else {
-                    passengers.push({ id: nextPassengerId++, ...passengerData });
+                    const nextId = passengers.length > 0 ? Math.max(...passengers.map(p => p.id)) + 1 : 1;
+                    passengers.push({ id: nextId, ...passengerData });
                 }
 
+                savePassengersToStorage();
                 renderPassengers();
                 closePassengerForm();
             });
@@ -348,11 +351,11 @@
 
                 if (confirm("Are you sure you want to delete " + p.firstName + " " + p.lastName + "?")) {
                     passengers = passengers.filter(item => item.id !== id);
+                    savePassengersToStorage();
                     renderPassengers();
                 }
             }
 
-            // Initialize page
             loadCourseDropdown();
             renderPassengers();
         </script>
