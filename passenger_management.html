@@ -2,7 +2,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Dashboard | Bus Ticketing System</title>
+        <title>Passenger Management | Bus Ticketing System</title>
         <link rel="stylesheet" href="style.css">
     </head>
     <body>
@@ -14,17 +14,17 @@
             </div>
 
             <nav>                
-                <a href="index.html" class="active">▦ Dashboard</a>
+                <a href="index.html">▦ Dashboard</a>
                 <a href="bus_management.html">🚌 Buses</a>
                 <a href="route_management.html">⌖ Routes</a>
                 <a href="schedule_management.html">▦ Schedules</a>
-                <a href="passenger_management.html">♟ Passengers</a>
+                <a href="passenger_management.html" class="active">♟ Passengers</a>
                 <a href="booking.html">▤ Bookings</a>
                 <a href="payment.html">▣ Payments</a>
                 <a href="ticket.html">▤ Tickets</a>
                 <a href="user.html">⚙ Users</a>
                 <a href="report.html">▥ Reports</a>
-                <a href="course_management.html">Course</a>
+                <a href="course_management.html">🎓 Courses</a>
             </nav>
         </aside>
 
@@ -32,9 +32,329 @@
             <header class="topbar">
                 <div>
                     <h2>Passenger Management</h2>
-                    <p>Manage and monitor your passengers.</p>
+                    <p>Manage and monitor your passengers and student records.</p>
                 </div>
             </header>
+
+            <section class="content">
+                <div class="page-heading">
+                    <div>
+                        <h2>Passenger List</h2>
+                        <p>View, add, edit, and manage passenger details including their enrolled course.</p>
+                    </div>
+                    <button class="add-btn" onclick="openPassengerForm()">
+                        + Add New Passenger
+                    </button>
+                </div>
+
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <p>Total Passengers</p>
+                        <h2 id="totalPassengers">0</h2>
+                    </div>
+                    <div class="summary-card">
+                        <p>Active Passengers</p>
+                        <h2 id="activePassengers">0</h2>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <div class="table-toolbar">
+                        <input
+                            type="search"
+                            id="searchPassengerInput"
+                            placeholder="Search name, passenger number, email, or course..."
+                            oninput="renderPassengers()"
+                        >
+
+                        <select id="statusFilter" onchange="renderPassengers()">
+                            <option value="">All Status</option>
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
+
+                    <div class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Passenger Number</th>
+                                    <th>Full Name</th>
+                                    <th>Contact Number</th>
+                                    <th>Email</th>
+                                    <th>Course</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="passengerTableBody"></tbody>
+                        </table>
+                    </div>
+
+                    <p id="emptyPassengerMessage" class="empty-message">
+                        No passengers found. Click "Add New Passenger" to get started.
+                    </p>
+                </div>
+            </section>
         </main>
+
+        <!-- Add/Edit Passenger Modal -->
+        <div class="modal" id="passengerModal">
+            <div class="modal-content">
+                <div class="modal-heading">
+                    <h2 id="passengerFormTitle">Add New Passenger</h2>
+                    <button class="close-btn" onclick="closePassengerForm()">×</button>
+                </div>
+
+                <form id="passengerForm">
+                    <input type="hidden" id="passengerId">
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="passengerNumber">Passenger Number</label>
+                            <input id="passengerNumber" type="text" placeholder="e.g. PSG-0001" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="contactNumber">Contact Number</label>
+                            <input id="contactNumber" type="text" placeholder="e.g. 09171234567" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="firstName">First Name</label>
+                            <input id="firstName" type="text" placeholder="e.g. Juan" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="lastName">Last Name</label>
+                            <input id="lastName" type="text" placeholder="e.g. Dela Cruz" required>
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label for="email">Email Address</label>
+                            <input id="email" type="email" placeholder="e.g. juan@example.com">
+                        </div>
+
+                        <!-- Step 3 & 4: Dynamic Course Dropdown Field Integration -->
+                        <div class="form-group full-width">
+                            <label for="passengerCourse">Course</label>
+                            <select id="passengerCourse" required>
+                                <option value="">Select a course</option>
+                                <!-- Populated dynamically from courses list -->
+                            </select>
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label for="passengerStatus">Status</label>
+                            <select id="passengerStatus" required>
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="cancel-btn" onclick="closePassengerForm()">Cancel</button>
+                        <button type="submit" class="save-btn">Save Passenger</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script>
+            // Shared mock database matching MySQL tables (courses and passengers)
+            let courses = [
+                { id: 1, code: "BSIT", name: "Bachelor of Science in Information Technology" },
+                { id: 2, code: "BSBA", name: "Bachelor of Science in Business Administration" },
+                { id: 3, code: "BSEED", name: "Bachelor of Science in Elementary Education" },
+                { id: 4, code: "BSN", name: "Bachelor of Science in Nursing" },
+                { id: 5, code: "BEED", name: "Bachelor of Elementary Education" }
+            ];
+
+            let passengers = [
+                {
+                    id: 1,
+                    number: "PSG-0001",
+                    firstName: "Juan",
+                    lastName: "Dela Cruz",
+                    contact: "09171234567",
+                    email: "juan@example.com",
+                    courseId: 1, // BSIT
+                    status: "Active"
+                },
+                {
+                    id: 2,
+                    number: "PSG-0002",
+                    firstName: "Maria",
+                    lastName: "Santos",
+                    contact: "09181234567",
+                    email: "maria@example.com",
+                    courseId: 2, // BSBA
+                    status: "Active"
+                }
+            ];
+
+            let nextPassengerId = 3;
+
+            // Step 4: Populate the Course dropdown dynamically
+            function loadCourseDropdown() {
+                const select = document.getElementById("passengerCourse");
+                select.innerHTML = '<option value="">Select a course</option>';
+                courses.forEach(course => {
+                    const option = document.createElement("option");
+                    option.value = course.id;
+                    option.textContent = course.code + " - " + course.name;
+                    select.appendChild(option);
+                });
+            }
+
+            function renderPassengers() {
+                const tbody = document.getElementById("passengerTableBody");
+                const search = document.getElementById("searchPassengerInput").value.toLowerCase().trim();
+                const filter = document.getElementById("statusFilter").value;
+
+                const filteredPassengers = passengers.filter(p => {
+                    const courseObj = courses.find(c => c.id === p.courseId);
+                    const courseText = courseObj ? (courseObj.code + " " + courseObj.name) : "";
+                    
+                    const matchesSearch = [
+                        p.number, p.firstName, p.lastName, p.email, p.contact, courseText
+                    ].some(val => val.toLowerCase().includes(search));
+
+                    return matchesSearch && (filter === "" || p.status === filter);
+                });
+
+                tbody.innerHTML = "";
+
+                filteredPassengers.forEach(p => {
+                    const row = document.createElement("tr");
+
+                    // Basic details cells
+                    const courseObj = courses.find(c => c.id === p.courseId);
+                    const values = [
+                        p.id,
+                        p.number,
+                        p.firstName + " " + p.lastName,
+                        p.contact,
+                        p.email || "N/A",
+                        courseObj ? courseObj.code : "N/A" // Step 6: Display Course Information
+                    ];
+
+                    values.forEach(val => {
+                        const cell = document.createElement("td");
+                        cell.textContent = val;
+                        row.appendChild(cell);
+                    });
+
+                    // Status Badge
+                    const statusCell = document.createElement("td");
+                    const badge = document.createElement("span");
+                    badge.className = "status " + p.status.toLowerCase();
+                    badge.textContent = p.status;
+                    statusCell.appendChild(badge);
+                    row.appendChild(statusCell);
+
+                    // Actions
+                    const actions = document.createElement("td");
+                    actions.className = "actions";
+
+                    const editBtn = document.createElement("button");
+                    editBtn.textContent = "Edit";
+                    editBtn.className = "edit-btn";
+                    editBtn.onclick = () => editPassenger(p.id);
+
+                    const deleteBtn = document.createElement("button");
+                    deleteBtn.textContent = "Delete";
+                    deleteBtn.className = "delete-btn";
+                    deleteBtn.onclick = () => deletePassenger(p.id);
+
+                    actions.append(editBtn, deleteBtn);
+                    row.appendChild(actions);
+                    tbody.appendChild(row);
+                });
+
+                document.getElementById("emptyPassengerMessage").style.display = filteredPassengers.length === 0 ? "block" : "none";
+                document.getElementById("totalPassengers").textContent = passengers.length;
+                document.getElementById("activePassengers").textContent = passengers.filter(p => p.status === "Active").length;
+            }
+
+            function openPassengerForm() {
+                document.getElementById("passengerForm").reset();
+                document.getElementById("passengerId").value = "";
+                document.getElementById("passengerFormTitle").textContent = "Add New Passenger";
+                loadCourseDropdown();
+                document.getElementById("passengerModal").style.display = "flex";
+            }
+
+            function closePassengerForm() {
+                document.getElementById("passengerModal").style.display = "none";
+            }
+
+            document.getElementById("passengerForm").addEventListener("submit", function(event) {
+                event.preventDefault();
+                const id = document.getElementById("passengerId").value;
+                
+                const passengerData = {
+                    number: document.getElementById("passengerNumber").value.trim(),
+                    firstName: document.getElementById("firstName").value.trim(),
+                    lastName: document.getElementById("lastName").value.trim(),
+                    contact: document.getElementById("contactNumber").value.trim(),
+                    email: document.getElementById("email").value.trim(),
+                    courseId: Number(document.getElementById("passengerCourse").value), // Step 5: Save Selected Course
+                    status: document.getElementById("passengerStatus").value
+                };
+
+                if (passengers.some(item => item.number.toLowerCase() === passengerData.number.toLowerCase() && String(item.id) !== id)) {
+                    alert("Passenger number already exists.");
+                    return;
+                }
+
+                if (id) {
+                    const index = passengers.findIndex(item => item.id === Number(id));
+                    if (index !== -1) {
+                        passengers[index] = { id: Number(id), ...passengerData };
+                    }
+                } else {
+                    passengers.push({ id: nextPassengerId++, ...passengerData });
+                }
+
+                renderPassengers();
+                closePassengerForm();
+            });
+
+            function editPassenger(id) {
+                const p = passengers.find(item => item.id === id);
+                if (!p) return;
+
+                loadCourseDropdown();
+
+                document.getElementById("passengerId").value = p.id;
+                document.getElementById("passengerNumber").value = p.number;
+                document.getElementById("firstName").value = p.firstName;
+                document.getElementById("lastName").value = p.lastName;
+                document.getElementById("contactNumber").value = p.contact;
+                document.getElementById("email").value = p.email;
+                document.getElementById("passengerCourse").value = p.courseId;
+                document.getElementById("passengerStatus").value = p.status;
+
+                document.getElementById("passengerFormTitle").textContent = "Edit Passenger";
+                document.getElementById("passengerModal").style.display = "flex";
+            }
+
+            function deletePassenger(id) {
+                const p = passengers.find(item => item.id === id);
+                if (!p) return;
+
+                if (confirm("Are you sure you want to delete " + p.firstName + " " + p.lastName + "?")) {
+                    passengers = passengers.filter(item => item.id !== id);
+                    renderPassengers();
+                }
+            }
+
+            // Initialize page
+            loadCourseDropdown();
+            renderPassengers();
+        </script>
     </body>
 </html>

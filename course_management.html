@@ -2,7 +2,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Dashboard | Bus Ticketing System</title>
+        <title>Course Management | Bus Ticketing System</title>
         <link rel="stylesheet" href="style.css">
     </head>
     <body>
@@ -14,7 +14,7 @@
             </div>
 
             <nav>                
-                <a href="index.html" class="active">▦ Dashboard</a>
+                <a href="index.html">▦ Dashboard</a>
                 <a href="bus_management.html">🚌 Buses</a>
                 <a href="route_management.html">⌖ Routes</a>
                 <a href="schedule_management.html">▦ Schedules</a>
@@ -24,7 +24,7 @@
                 <a href="ticket.html">▤ Tickets</a>
                 <a href="user.html">⚙ Users</a>
                 <a href="report.html">▥ Reports</a>
-                <a href="course_management.html">Course</a>
+                <a href="course_management.html" class="active">🎓 Courses</a>
             </nav>
         </aside>
 
@@ -32,9 +32,202 @@
             <header class="topbar">
                 <div>
                     <h2>Course Management</h2>
-                    <p>Manage and monitor your Courses.</p>
+                    <p>Manage and monitor academic courses.</p>
                 </div>
             </header>
+
+            <section class="content">
+                <div class="page-heading">
+                    <div>
+                        <h2>Course List</h2>
+                        <p>View, add, edit, and delete course records.</p>
+                    </div>
+                    <button class="add-btn" onclick="openCourseForm()">
+                        + Add New Course
+                    </button>
+                </div>
+
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <p>Total Courses</p>
+                        <h2 id="totalCourses">0</h2>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <div class="table-toolbar">
+                        <input
+                            type="search"
+                            id="searchCourseInput"
+                            placeholder="Search course code or name..."
+                            oninput="renderCourses()"
+                        >
+                    </div>
+
+                    <div class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Course ID</th>
+                                    <th>Course Code</th>
+                                    <th>Course Name</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="courseTableBody"></tbody>
+                        </table>
+                    </div>
+
+                    <p id="emptyCourseMessage" class="empty-message">
+                        No courses found. Click "Add New Course" to get started.
+                    </p>
+                </div>
+            </section>
         </main>
+
+        <!-- Add/Edit Course Modal -->
+        <div class="modal" id="courseModal">
+            <div class="modal-content">
+                <div class="modal-heading">
+                    <h2 id="courseFormTitle">Add New Course</h2>
+                    <button class="close-btn" onclick="closeCourseForm()">×</button>
+                </div>
+
+                <form id="courseForm">
+                    <input type="hidden" id="courseId">
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="courseCode">Course Code</label>
+                            <input id="courseCode" type="text" placeholder="e.g. BSIT" required>
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label for="courseName">Course Name</label>
+                            <input id="courseName" type="text" placeholder="e.g. Bachelor of Science in Information Technology" required>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="cancel-btn" onclick="closeCourseForm()">Cancel</button>
+                        <button type="submit" class="save-btn">Save Course</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script>
+            let courses = [
+                { id: 1, code: "BSIT", name: "Bachelor of Science in Information Technology" },
+                { id: 2, code: "BSBA", name: "Bachelor of Science in Business Administration" },
+                { id: 3, code: "BSEED", name: "Bachelor of Science in Elementary Education" },
+                { id: 4, code: "BSN", name: "Bachelor of Science in Nursing" },
+                { id: 5, code: "BEED", name: "Bachelor of Elementary Education" }
+            ];
+
+            let nextCourseId = 6;
+
+            function renderCourses() {
+                const tbody = document.getElementById("courseTableBody");
+                const search = document.getElementById("searchCourseInput").value.toLowerCase().trim();
+
+                const filteredCourses = courses.filter(course => 
+                    course.code.toLowerCase().includes(search) || 
+                    course.name.toLowerCase().includes(search)
+                );
+
+                tbody.innerHTML = "";
+
+                filteredCourses.forEach(course => {
+                    const row = document.createElement("tr");
+
+                    const values = [course.id, course.code, course.name];
+                    values.forEach(val => {
+                        const cell = document.createElement("td");
+                        cell.textContent = val;
+                        row.appendChild(cell);
+                    });
+
+                    const actions = document.createElement("td");
+                    actions.className = "actions";
+
+                    const editBtn = document.createElement("button");
+                    editBtn.textContent = "Edit";
+                    editBtn.className = "edit-btn";
+                    editBtn.onclick = () => editCourse(course.id);
+
+                    const deleteBtn = document.createElement("button");
+                    deleteBtn.textContent = "Delete";
+                    deleteBtn.className = "delete-btn";
+                    deleteBtn.onclick = () => deleteCourse(course.id);
+
+                    actions.append(editBtn, deleteBtn);
+                    row.appendChild(actions);
+                    tbody.appendChild(row);
+                });
+
+                document.getElementById("emptyCourseMessage").style.display = filteredCourses.length === 0 ? "block" : "none";
+                document.getElementById("totalCourses").textContent = courses.length;
+            }
+
+            function openCourseForm() {
+                document.getElementById("courseForm").reset();
+                document.getElementById("courseId").value = "";
+                document.getElementById("courseFormTitle").textContent = "Add New Course";
+                document.getElementById("courseModal").style.display = "flex";
+            }
+
+            function closeCourseForm() {
+                document.getElementById("courseModal").style.display = "none";
+            }
+
+            document.getElementById("courseForm").addEventListener("submit", function(event) {
+                event.preventDefault();
+                const id = document.getElementById("courseId").value;
+                const code = document.getElementById("courseCode").value.trim();
+                const name = document.getElementById("courseName").value.trim();
+
+                if (courses.some(item => item.code.toLowerCase() === code.toLowerCase() && String(item.id) !== id)) {
+                    alert("Course code already exists.");
+                    return;
+                }
+
+                if (id) {
+                    const index = courses.findIndex(item => item.id === Number(id));
+                    if (index !== -1) {
+                        courses[index] = { id: Number(id), code, name };
+                    }
+                } else {
+                    courses.push({ id: nextCourseId++, code, name });
+                }
+
+                renderCourses();
+                closeCourseForm();
+            });
+
+            function editCourse(id) {
+                const course = courses.find(item => item.id === id);
+                if (!course) return;
+
+                document.getElementById("courseId").value = course.id;
+                document.getElementById("courseCode").value = course.code;
+                document.getElementById("courseName").value = course.name;
+
+                document.getElementById("courseFormTitle").textContent = "Edit Course";
+                document.getElementById("courseModal").style.display = "flex";
+            }
+
+            function deleteCourse(id) {
+                const course = courses.find(item => item.id === id);
+                if (!course) return;
+
+                if (confirm("Are you sure you want to delete " + course.code + "?")) {
+                    courses = courses.filter(item => item.id !== id);
+                    renderCourses();
+                }
+            }
+
+            renderCourses();
+        </script>
     </body>
 </html>

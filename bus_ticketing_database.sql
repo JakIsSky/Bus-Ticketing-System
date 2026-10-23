@@ -296,3 +296,23 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 -- Dump completed on 2026-10-15 16:48:23
+
+CREATE TABLE `courses` (
+  `course_id` int NOT NULL AUTO_INCREMENT,
+  `course_code` varchar(20) NOT NULL,
+  `course_name` varchar(100) NOT NULL,
+  PRIMARY KEY (`course_id`),
+  UNIQUE KEY `course_code` (`course_code`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 2. Insert sample course records
+INSERT INTO `courses` VALUES 
+(1, 'BSIT', 'Bachelor of Science in Information Technology'),
+(2, 'BSBA', 'Bachelor of Science in Business Administration'),
+(3, 'BSEED', 'Bachelor of Science in Elementary Education'),
+(4, 'BSN', 'Bachelor of Science in Nursing'),
+(5, 'BEED', 'Bachelor of Elementary Education');
+
+-- 3. Add course_id foreign key to the passengers (student) table
+ALTER TABLE `passengers` ADD COLUMN `course_id` int DEFAULT NULL;
+ALTER TABLE `passengers` ADD CONSTRAINT `passengers_ibfk_course` FOREIGN KEY (`course_id`) REFERENCES `courses` (`course_id`);
