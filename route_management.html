@@ -4,6 +4,10 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Route Management | Bus Ticketing System</title>
         <link rel="stylesheet" href="style.css">
+        <!-- Supabase Scripts -->
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+        <script src="supabase.js"></script>
+        <script src="supabase-db.js"></script>
     </head>
     <body>
 
@@ -14,9 +18,9 @@
             </div>
 
             <nav>
-                <a href="index.html" class="active">▦ Dashboard</a>
+                <a href="index.html">▦ Dashboard</a>
                 <a href="bus_management.html">🚌 Buses</a>
-                <a href="route_management.html">⌖ Routes</a>
+                <a href="route_management.html" class="active">⌖ Routes</a>
                 <a href="schedule_management.html">▦ Schedules</a>
                 <a href="passenger_management.html">♟ Passengers</a>
                 <a href="booking.html">▤ Bookings</a>
@@ -32,7 +36,7 @@
             <header class="topbar">
                 <div>
                     <h1>Route Management</h1>
-                    <p>Manage bus routes, destinations, and fares.</p>
+                    <p>Manage bus routes, destinations, and fares via Supabase.</p>
                 </div>
             </header>
             <section class="content">
@@ -96,7 +100,7 @@
                         </table>
                     </div>
 
-                    <p id="emptyMessage" class="empty-message">
+                    <p id="emptyMessage" class="empty-message" style="display:none;">
                         No routes found. Click "Add New Route" to get started.
                     </p>
                 </div>
@@ -104,7 +108,7 @@
         </main>
 
         <!-- Add/Edit Route Modal -->
-        <div class="modal" id="routeModal">
+        <div class="modal" id="routeModal" style="display:none;">
             <div class="modal-content">
                 <div class="modal-heading">
                     <h2 id="formTitle">Add New Route</h2>
@@ -144,7 +148,7 @@
                         <div class="form-group">
                             <label for="duration">Estimated Duration</label>
                             <input type="text" id="duration"
-                                placeholder="e.g. 3 hours 30 minutes" required>
+                                placeholder="e.g. 5 hours 30 minutes" required>
                         </div>
 
                         <div class="form-group">
@@ -173,58 +177,28 @@
         </div>
 
         <script>
-            // Temporary sample records for demonstration.
-            let routes = [
-                {
-                    id: 1,
-                    code: "RT-001",
-                    origin: "Bagabag",
-                    destination: "Solano",
-                    distance: 25,
-                    duration: "45 minutes",
-                    fare: 80,
-                    status: "Active"
-                },
-                {
-                    id: 2,
-                    code: "RT-002",
-                    origin: "Solano",
-                    destination: "Bayombong",
-                    distance: 15,
-                    duration: "30 minutes",
-                    fare: 60,
-                    status: "Active"
-                },
-                {
-                    id: 3,
-                    code: "RT-003",
-                    origin: "Bayombong",
-                    destination: "Santiago City",
-                    distance: 65,
-                    duration: "1 hour 45 minutes",
-                    fare: 180,
-                    status: "Inactive"
-                }
-            ];
+            let routes = [];
 
-            let nextId = 4;
+            // PULL DATA FROM SUPABASE
+            async function fetchRoutes() {
+                routes = await DB.getAll('routes');
+                renderRoutes();
+            }
 
             function renderRoutes() {
                 const tbody = document.getElementById("routeTableBody");
-                const search = document.getElementById("searchInput")
-                    .value.toLowerCase().trim();
+                const search = document.getElementById("searchInput").value.toLowerCase().trim();
                 const filter = document.getElementById("statusFilter").value;
 
                 const filteredRoutes = routes.filter(route => {
                     const matchesSearch = [
-                        route.code,
+                        route.route_code,
                         route.origin,
                         route.destination,
-                        route.duration
-                    ].some(value => value.toLowerCase().includes(search));
+                        route.estimated_duration
+                    ].some(value => (value || '').toLowerCase().includes(search));
 
-                    return matchesSearch &&
-                        (filter === "" || route.status === filter);
+                    return matchesSearch && (filter === "" || route.status === filter);
                 });
 
                 tbody.innerHTML = "";
@@ -233,12 +207,12 @@
                     const row = document.createElement("tr");
 
                     const values = [
-                        route.id,
-                        route.code,
+                        route.route_id,
+                        route.route_code,
                         route.origin,
                         route.destination,
                         route.distance,
-                        route.duration,
+                        route.estimated_duration,
                         Number(route.fare).toLocaleString("en-PH", {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2
@@ -253,7 +227,7 @@
 
                     const statusCell = document.createElement("td");
                     const badge = document.createElement("span");
-                    badge.className = "status " + route.status.toLowerCase();
+                    badge.className = "status " + (route.status || 'active').toLowerCase();
                     badge.textContent = route.status;
                     statusCell.appendChild(badge);
                     row.appendChild(statusCell);
@@ -264,12 +238,12 @@
                     const editButton = document.createElement("button");
                     editButton.textContent = "Edit";
                     editButton.className = "edit-btn";
-                    editButton.onclick = () => editRoute(route.id);
+                    editButton.onclick = () => editRoute(route.route_id);
 
                     const deleteButton = document.createElement("button");
                     deleteButton.textContent = "Delete";
                     deleteButton.className = "delete-btn";
-                    deleteButton.onclick = () => deleteRoute(route.id);
+                    deleteButton.onclick = () => deleteRoute(route.route_id);
 
                     actions.append(editButton, deleteButton);
                     row.appendChild(actions);
@@ -279,12 +253,9 @@
                 document.getElementById("emptyMessage").style.display =
                     filteredRoutes.length === 0 ? "block" : "none";
 
-                document.getElementById("totalRoutes").textContent =
-                    routes.length;
-
+                document.getElementById("totalRoutes").textContent = routes.length;
                 document.getElementById("activeRoutes").textContent =
                     routes.filter(route => route.status === "Active").length;
-
                 document.getElementById("inactiveRoutes").textContent =
                     routes.filter(route => route.status === "Inactive").length;
             }
@@ -300,68 +271,51 @@
                 document.getElementById("routeModal").style.display = "none";
             }
 
-            document.getElementById("routeForm")
-                .addEventListener("submit", function(event) {
-                    event.preventDefault();
+            // PUSH DATA TO SUPABASE (CREATE OR UPDATE)
+            document.getElementById("routeForm").addEventListener("submit", async function(event) {
+                event.preventDefault();
 
-                    const id = document.getElementById("routeId").value;
+                const id = document.getElementById("routeId").value;
 
-                    const route = {
-                        code: document.getElementById("routeCode")
-                            .value.trim(),
-                        origin: document.getElementById("origin")
-                            .value.trim(),
-                        destination: document.getElementById("destination")
-                            .value.trim(),
-                        distance: Number(
-                            document.getElementById("distance").value
-                        ),
-                        duration: document.getElementById("duration")
-                            .value.trim(),
-                        fare: Number(document.getElementById("fare").value),
-                        status: document.getElementById("routeStatus").value
-                    };
+                const routePayload = {
+                    route_code: document.getElementById("routeCode").value.trim(),
+                    origin: document.getElementById("origin").value.trim(),
+                    destination: document.getElementById("destination").value.trim(),
+                    distance: Number(document.getElementById("distance").value),
+                    estimated_duration: document.getElementById("duration").value.trim(),
+                    fare: Number(document.getElementById("fare").value),
+                    status: document.getElementById("routeStatus").value
+                };
 
-                    if (route.origin.toLowerCase() ===
-                        route.destination.toLowerCase()) {
-                        alert("Origin and destination must be different.");
-                        return;
-                    }
+                if (routePayload.origin.toLowerCase() === routePayload.destination.toLowerCase()) {
+                    alert("Origin and destination must be different.");
+                    return;
+                }
 
-                    if (routes.some(item =>
-                        item.code.toLowerCase() === route.code.toLowerCase() &&
-                        String(item.id) !== id
-                    )) {
-                        alert("Route code already exists.");
-                        return;
-                    }
+                let result;
+                if (id) {
+                    result = await DB.update('routes', 'route_id', id, routePayload);
+                } else {
+                    result = await DB.insert('routes', routePayload); // Pushes new record to Supabase
+                }
 
-                    if (id) {
-                        const index = routes.findIndex(
-                            item => item.id === Number(id)
-                        );
-
-                        if (index !== -1) {
-                            routes[index] = { id: Number(id), ...route };
-                        }
-                    } else {
-                        routes.push({ id: nextId++, ...route });
-                    }
-
-                    renderRoutes();
+                if (result) {
+                    alert("Route saved successfully to Supabase!");
                     closeForm();
-                });
+                    fetchRoutes(); // Pulls fresh data back down
+                }
+            });
 
             function editRoute(id) {
-                const route = routes.find(item => item.id === id);
+                const route = routes.find(item => item.route_id === id);
                 if (!route) return;
 
-                document.getElementById("routeId").value = route.id;
-                document.getElementById("routeCode").value = route.code;
+                document.getElementById("routeId").value = route.route_id;
+                document.getElementById("routeCode").value = route.route_code;
                 document.getElementById("origin").value = route.origin;
                 document.getElementById("destination").value = route.destination;
                 document.getElementById("distance").value = route.distance;
-                document.getElementById("duration").value = route.duration;
+                document.getElementById("duration").value = route.estimated_duration;
                 document.getElementById("fare").value = route.fare;
                 document.getElementById("routeStatus").value = route.status;
 
@@ -369,17 +323,20 @@
                 document.getElementById("routeModal").style.display = "flex";
             }
 
-            function deleteRoute(id) {
-                const route = routes.find(item => item.id === id);
+            async function deleteRoute(id) {
+                const route = routes.find(item => item.route_id === id);
                 if (!route) return;
 
-                if (confirm("Delete route " + route.code + "?")) {
-                    routes = routes.filter(item => item.id !== id);
-                    renderRoutes();
+                if (confirm("Delete route " + route.route_code + "?")) {
+                    const success = await DB.delete('routes', 'route_id', id);
+                    if (success) {
+                        fetchRoutes();
+                    }
                 }
             }
 
-            renderRoutes();
+            // Load data when page loads
+            window.addEventListener('DOMContentLoaded', fetchRoutes);
         </script>
 
     </body>

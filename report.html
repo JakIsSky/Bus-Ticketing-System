@@ -1,39 +1,298 @@
+<!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Dashboard | Bus Ticketing System</title>
-        <link rel="stylesheet" href="style.css">
-    </head>
-    <body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports & Analytics | Bus Ticketing System</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Supabase JS Library & Custom Database Helper -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-db.js"></script>
+</head>
+<body>
 
-        <aside class="sidebar">
-            <div class="logo">
-                <span class="logo-icon">🚌</span>
-                <h2>Bus Ticketing</h2>
+    <aside class="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🚌</span>
+            <h2>Bus Ticketing</h2>
+        </div>
+
+        <nav>
+            <a href="index.html">▦ Dashboard</a>
+            <a href="bus_management.html">🚌 Buses</a>
+            <a href="route_management.html">⌖ Routes</a>
+            <a href="schedule_management.html">▦ Schedules</a>
+            <a href="passenger_management.html">♟ Passengers</a>
+            <a href="booking.html">▤ Bookings</a>
+            <a href="payment.html">▣ Payments</a>
+            <a href="ticket.html">▤ Tickets</a>
+            <a href="user.html">⚙ Users</a>
+            <a href="report.html" class="active">▥ Reports</a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div>
+                <h2>System Reports & Analytics</h2>
+                <p>View real-time operational summaries, ticket sales, and revenue generated from Supabase.</p>
+            </div>
+        </header>
+
+        <section class="content">
+            <!-- Executive Metrics -->
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <p>Total Revenue Collected</p>
+                    <h2 id="totalRevenue">₱0.00</h2>
+                </div>
+                <div class="summary-card">
+                    <p>Total Paid Bookings</p>
+                    <h2 id="totalPaidBookings">0</h2>
+                </div>
+                <div class="summary-card">
+                    <p>Issued Tickets</p>
+                    <h2 id="totalIssuedTickets">0</h2>
+                </div>
+                <div class="summary-card">
+                    <p>Active Routes</p>
+                    <h2 id="totalActiveRoutes">0</h2>
+                </div>
             </div>
 
-            <nav>
-                <a href="index.html" class="active">▦ Dashboard</a>
-                <a href="bus_management.html">🚌 Buses</a>
-                <a href="route_management.html">⌖ Routes</a>
-                <a href="schedule_management.html">▦ Schedules</a>
-                <a href="passenger_management.html">♟ Passengers</a>
-                <a href="booking.html">▤ Bookings</a>
-                <a href="payment.html">▣ Payments</a>
-                <a href="ticket.html">▤ Tickets</a>
-                <a href="user.html">⚙ Users</a>
-                <a href="report.html">▥ Reports</a>
-                <a href="course_management.html">🎓Course</a>
-            </nav>
-        </aside>
-        <main class="main-content">
-            <header class="topbar">
-                <div>
-                    <h2>Report</h2>
-                    <p>View and generate reports.</p>
+            <!-- Report Toolbar & Switcher -->
+            <div class="table-container">
+                <div class="table-toolbar" style="display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 20px;">
+                    <div style="display: flex; gap: 10px;">
+                        <select id="reportTypeSelect" onchange="switchReportType()">
+                            <option value="revenue">Revenue & Sales Report</option>
+                            <option value="occupancy">Schedule Occupancy Report</option>
+                            <option value="tickets">Ticket Log Manifest</option>
+                        </select>
+                        <input type="date" id="startDateFilter" onchange="loadReportData()">
+                        <input type="date" id="endDateFilter" onchange="loadReportData()">
+                    </div>
+                    <button class="add-btn" onclick="exportToCSV()">📥 Export Report (CSV)</button>
                 </div>
-            </header>
-        </main>
-    </body>
+
+                <!-- Table Content -->
+                <div class="table-scroll">
+                    <table>
+                        <thead id="reportTableHeader"></thead>
+                        <tbody id="reportTableBody"></tbody>
+                    </table>
+                </div>
+
+                <p id="emptyReportMessage" class="empty-message" style="display:none; text-align: center; padding: 20px; color: #666;">No data available for the selected report filters.</p>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        let payments = [];
+        let bookings = [];
+        let tickets = [];
+        let schedules = [];
+        let routes = [];
+        let buses = [];
+        let passengers = [];
+
+        // Fetch all relational data from Supabase
+        async function loadReportData() {
+            payments = await DB.getAll('payments');
+            bookings = await DB.getAll('bookings');
+            tickets = await DB.getAll('tickets');
+            schedules = await DB.getAll('schedules');
+            routes = await DB.getAll('routes');
+            buses = await DB.getAll('buses');
+            passengers = await DB.getAll('passengers');
+
+            updateSummaryCards();
+            switchReportType();
+        }
+
+        // Calculate and render executive metrics
+        function updateSummaryCards() {
+            const revenueSum = payments
+                .filter(p => p.payment_status === 'Paid')
+                .reduce((acc, curr) => acc + Number(curr.amount_paid || 0) - Number(curr.change_amount || 0), 0);
+
+            const paidCount = bookings.filter(b => b.booking_status === 'Paid' || b.booking_status === 'Confirmed').length;
+            const validTickets = tickets.filter(t => t.ticket_status === 'Valid' || t.ticket_status === 'Used').length;
+            const activeRoutesCount = routes.filter(r => r.status === 'Active').length;
+
+            document.getElementById('totalRevenue').textContent = '₱' + revenueSum.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('totalPaidBookings').textContent = paidCount;
+            document.getElementById('totalIssuedTickets').textContent = validTickets;
+            document.getElementById('totalActiveRoutes').textContent = activeRoutesCount;
+        }
+
+        // Switch between dynamic report table layouts
+        function switchReportType() {
+            const type = document.getElementById('reportTypeSelect').value;
+            const thead = document.getElementById('reportTableHeader');
+            const tbody = document.getElementById('reportTableBody');
+
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+
+            if (type === 'revenue') {
+                thead.innerHTML = `
+                    <tr>
+                        <th>Payment ID</th>
+                        <th>Booking No.</th>
+                        <th>Passenger</th>
+                        <th>Payment Date</th>
+                        <th>Amount Due</th>
+                        <th>Amount Paid</th>
+                        <th>Method</th>
+                        <th>Status</th>
+                    </tr>
+                `;
+                renderRevenueReport();
+            } else if (type === 'occupancy') {
+                thead.innerHTML = `
+                    <tr>
+                        <th>Schedule ID</th>
+                        <th>Bus</th>
+                        <th>Route</th>
+                        <th>Departure Date</th>
+                        <th>Time</th>
+                        <th>Available Seats</th>
+                        <th>Status</th>
+                    </tr>
+                `;
+                renderOccupancyReport();
+            } else if (type === 'tickets') {
+                thead.innerHTML = `
+                    <tr>
+                        <th>Ticket ID</th>
+                        <th>Ticket Number</th>
+                        <th>Booking No.</th>
+                        <th>Passenger</th>
+                        <th>Seat Number</th>
+                        <th>Issue Date</th>
+                        <th>Status</th>
+                    </tr>
+                `;
+                renderTicketsReport();
+            }
+        }
+
+        // Render Sales & Revenue Report
+        function renderRevenueReport() {
+            const tbody = document.getElementById('reportTableBody');
+            tbody.innerHTML = '';
+
+            if (payments.length === 0) {
+                document.getElementById('emptyReportMessage').style.display = 'block';
+                return;
+            }
+            document.getElementById('emptyReportMessage').style.display = 'none';
+
+            payments.forEach(p => {
+                const b = bookings.find(item => item.booking_id === p.booking_id) || {};
+                const pass = passengers.find(item => item.passenger_id === b.passenger_id) || {};
+                const passName = pass.first_name ? `${pass.first_name} ${pass.last_name}` : 'N/A';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${p.payment_id}</td>
+                    <td><strong>${b.booking_number || 'N/A'}</strong></td>
+                    <td>${passName}</td>
+                    <td>${p.payment_date ? new Date(p.payment_date).toLocaleString('en-PH') : 'N/A'}</td>
+                    <td>₱${Number(p.amount_due || 0).toFixed(2)}</td>
+                    <td>₱${Number(p.amount_paid || 0).toFixed(2)}</td>
+                    <td>${p.payment_method || 'Cash'}</td>
+                    <td><span class="status ${(p.payment_status || '').toLowerCase()}">${p.payment_status}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Render Schedule Occupancy Report
+        function renderOccupancyReport() {
+            const tbody = document.getElementById('reportTableBody');
+            tbody.innerHTML = '';
+
+            if (schedules.length === 0) {
+                document.getElementById('emptyReportMessage').style.display = 'block';
+                return;
+            }
+            document.getElementById('emptyReportMessage').style.display = 'none';
+
+            schedules.forEach(s => {
+                const b = buses.find(item => item.bus_id === s.bus_id) || {};
+                const r = routes.find(item => item.route_id === s.route_id) || {};
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${s.schedule_id}</td>
+                    <td>${b.bus_number || 'N/A'} (${b.bus_type || ''})</td>
+                    <td>${r.origin || ''} ➔ ${r.destination || ''}</td>
+                    <td>${s.departure_date}</td>
+                    <td>${s.departure_time} - ${s.arrival_time}</td>
+                    <td>${s.available_seats} / ${b.seating_capacity || 40}</td>
+                    <td><span class="status ${(s.schedule_status || '').toLowerCase()}">${s.schedule_status}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Render Ticket Manifest Log Report
+        function renderTicketsReport() {
+            const tbody = document.getElementById('reportTableBody');
+            tbody.innerHTML = '';
+
+            if (tickets.length === 0) {
+                document.getElementById('emptyReportMessage').style.display = 'block';
+                return;
+            }
+            document.getElementById('emptyReportMessage').style.display = 'none';
+
+            tickets.forEach(t => {
+                const b = bookings.find(item => item.booking_id === t.booking_id) || {};
+                const pass = passengers.find(item => item.passenger_id === b.passenger_id) || {};
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${t.ticket_id}</td>
+                    <td><strong>${t.ticket_number}</strong></td>
+                    <td>${b.booking_number || 'N/A'}</td>
+                    <td>${pass.first_name ? `${pass.first_name} ${pass.last_name}` : 'N/A'}</td>
+                    <td>${t.seat_number}</td>
+                    <td>${t.issue_date ? new Date(t.issue_date).toLocaleDateString('en-PH') : 'N/A'}</td>
+                    <td><span class="status ${(t.ticket_status || '').toLowerCase()}">${t.ticket_status}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Export active visible report table to a downloadable CSV file
+        function exportToCSV() {
+            const type = document.getElementById('reportTypeSelect').value;
+            const rows = document.querySelectorAll('table tr');
+            let csv = [];
+
+            for (let i = 0; i < rows.length; i++) {
+                let row = [], cols = rows[i].querySelectorAll('td, th');
+                for (let j = 0; j < cols.length; j++) {
+                    row.push('"' + cols[j].innerText.replace(/"/g, '""') + '"');
+                }
+                csv.push(row.join(','));
+            }
+
+            const csvFile = new Blob([csv.join('\n')], { type: 'text/csv' });
+            const downloadLink = document.createElement('a');
+            downloadLink.download = `bus_system_${type}_report_${new Date().toISOString().slice(0,10)}.csv`;
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = 'none';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+
+        window.addEventListener('DOMContentLoaded', loadReportData);
+    </script>
+</body>
 </html>

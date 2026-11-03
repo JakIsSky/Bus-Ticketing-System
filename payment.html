@@ -1,39 +1,360 @@
+<!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Dashboard | Bus Ticketing System</title>
-        <link rel="stylesheet" href="style.css">
-    </head>
-    <body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Management | Bus Ticketing System</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Supabase JS Library & Custom Database Helper -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-db.js"></script>
+</head>
+<body>
 
-        <aside class="sidebar">
-            <div class="logo">
-                <span class="logo-icon">🚌</span>
-                <h2>Bus Ticketing</h2>
+    <aside class="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🚌</span>
+            <h2>Bus Ticketing</h2>
+        </div>
+
+        <nav>
+            <a href="index.html">▦ Dashboard</a>
+            <a href="bus_management.html">🚌 Buses</a>
+            <a href="route_management.html">⌖ Routes</a>
+            <a href="schedule_management.html">▦ Schedules</a>
+            <a href="passenger_management.html">♟ Passengers</a>
+            <a href="booking.html">▤ Bookings</a>
+            <a href="payment.html" class="active">▣ Payments</a>
+            <a href="ticket.html">▤ Tickets</a>
+            <a href="user.html">⚙ Users</a>
+            <a href="report.html">▥ Reports</a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div>
+                <h2>Payment Management</h2>
+                <p>Process, record, and monitor cash or online passenger payments via Supabase.</p>
+            </div>
+        </header>
+
+        <section class="content">
+            <div class="page-heading">
+                <div>
+                    <h2>Payment Transactions</h2>
+                    <p>Process payments for pending bookings and track transaction history.</p>
+                </div>
+                <button class="add-btn" onclick="openPaymentForm()">+ Process New Payment</button>
             </div>
 
-            <nav>
-                <a href="index.html" class="active">▦ Dashboard</a>
-                <a href="bus_management.html">🚌 Buses</a>
-                <a href="route_management.html">⌖ Routes</a>
-                <a href="schedule_management.html">▦ Schedules</a>
-                <a href="passenger_management.html">♟ Passengers</a>
-                <a href="booking.html">▤ Bookings</a>
-                <a href="payment.html">▣ Payments</a>
-                <a href="ticket.html">▤ Tickets</a>
-                <a href="user.html">⚙ Users</a>
-                <a href="report.html">▥ Reports</a>
-                <a href="course_management.html">🎓Course</a>
-            </nav>
-        </aside>
-        <main class="main-content">
-            <header class="topbar">
-                <div>
-                    <h2>Payment</h2>
-                    <p>Manage and monitor your payments.</p>
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <p>Total Payments Collected</p>
+                    <h2 id="totalRevenue">₱0.00</h2>
                 </div>
-            </header>
-        </main>
-    </body>
+                <div class="summary-card">
+                    <p>Total Transactions</p>
+                    <h2 id="totalTransactions">0</h2>
+                </div>
+                <div class="summary-card">
+                    <p>Paid Status</p>
+                    <h2 id="paidCount">0</h2>
+                </div>
+                <div class="summary-card">
+                    <p>Refunded</p>
+                    <h2 id="refundedCount">0</h2>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="table-toolbar">
+                    <input type="search" id="searchInput" placeholder="Search payment ID, booking no, method..." oninput="renderPayments()">
+                    <select id="methodFilter" onchange="renderPayments()">
+                        <option value="">All Methods</option>
+                        <option value="Cash">Cash</option>
+                        <option value="GCash">GCash</option>
+                        <option value="Credit Card">Credit Card</option>
+                        <option value="Online Transfer">Online Transfer</option>
+                    </select>
+                    <select id="statusFilter" onchange="renderPayments()">
+                        <option value="">All Status</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Refunded">Refunded</option>
+                    </select>
+                </div>
+
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Payment ID</th>
+                                <th>Booking No.</th>
+                                <th>Passenger</th>
+                                <th>Date & Time</th>
+                                <th>Amount Due</th>
+                                <th>Amount Paid</th>
+                                <th>Change</th>
+                                <th>Payment Method</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="paymentTableBody"></tbody>
+                    </table>
+                </div>
+
+                <p id="emptyMessage" class="empty-message" style="display:none; text-align: center; padding: 20px; color: #666;">No payment transactions found. Click "+ Process New Payment" to get started.</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Process Payment Modal -->
+    <div class="modal" id="paymentModal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-heading">
+                <h2 id="formTitle">Process Payment</h2>
+                <button class="close-btn" onclick="closePaymentForm()">×</button>
+            </div>
+
+            <form id="paymentForm">
+                <input type="hidden" id="paymentId">
+
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label for="bookingId">Select Booking</label>
+                        <select id="bookingId" onchange="onBookingSelect()" required>
+                            <option value="">Select a Booking</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="amountDue">Amount Due (₱)</label>
+                        <input type="number" id="amountDue" step="0.01" min="0.01" readonly required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="amountPaid">Amount Paid (₱)</label>
+                        <input type="number" id="amountPaid" step="0.01" min="0.01" oninput="calculateChange()" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="changeAmount">Change Amount (₱)</label>
+                        <input type="number" id="changeAmount" step="0.01" min="0" value="0.00" readonly required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="paymentMethod">Payment Method</label>
+                        <select id="paymentMethod" required>
+                            <option value="Cash">Cash</option>
+                            <option value="GCash">GCash</option>
+                            <option value="Credit Card">Credit Card</option>
+                            <option value="Online Transfer">Online Transfer</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="paymentStatus">Payment Status</label>
+                        <select id="paymentStatus" required>
+                            <option value="Paid">Paid</option>
+                            <option value="Refunded">Refunded</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="cancel-btn" onclick="closePaymentForm()">Cancel</button>
+                    <button type="submit" class="save-btn">Save Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let payments = [];
+        let bookings = [];
+        let passengers = [];
+
+        // Load relational data from Supabase
+        async function fetchAllData() {
+            payments = await DB.getAll('payments');
+            bookings = await DB.getAll('bookings');
+            passengers = await DB.getAll('passengers');
+
+            populateBookingDropdown();
+            renderPayments();
+        }
+
+        // Populate dropdown with available bookings
+        function populateBookingDropdown() {
+            const bookingSelect = document.getElementById("bookingId");
+            bookingSelect.innerHTML = '<option value="">Select a Booking</option>';
+            bookings.forEach(b => {
+                const pass = passengers.find(p => p.passenger_id === b.passenger_id);
+                const passName = pass ? `${pass.first_name} ${pass.last_name}` : `Passenger #${b.passenger_id}`;
+                const opt = document.createElement("option");
+                opt.value = b.booking_id;
+                opt.dataset.fare = b.fare;
+                opt.textContent = `${b.booking_number} - ${passName} (₱${Number(b.fare).toFixed(2)}) [${b.booking_status}]`;
+                bookingSelect.appendChild(opt);
+            });
+        }
+
+        // Auto-populate Amount Due when booking is selected
+        function onBookingSelect() {
+            const select = document.getElementById("bookingId");
+            const selectedOpt = select.options[select.selectedIndex];
+            if (selectedOpt && selectedOpt.dataset.fare) {
+                const fare = Number(selectedOpt.dataset.fare);
+                document.getElementById("amountDue").value = fare.toFixed(2);
+                document.getElementById("amountPaid").value = fare.toFixed(2);
+                calculateChange();
+            }
+        }
+
+        // Dynamically compute change amount
+        function calculateChange() {
+            const due = Number(document.getElementById("amountDue").value || 0);
+            const paid = Number(document.getElementById("amountPaid").value || 0);
+            const change = Math.max(0, paid - due);
+            document.getElementById("changeAmount").value = change.toFixed(2);
+        }
+
+        // Render payment records into table
+        function renderPayments() {
+            const tbody = document.getElementById("paymentTableBody");
+            const search = document.getElementById("searchInput").value.toLowerCase().trim();
+            const methodFilter = document.getElementById("methodFilter").value;
+            const statusFilter = document.getElementById("statusFilter").value;
+
+            const filtered = payments.filter(p => {
+                const b = bookings.find(item => item.booking_id === p.booking_id) || {};
+                const pass = passengers.find(item => item.passenger_id === b.passenger_id) || {};
+                const passName = pass.first_name ? `${pass.first_name} ${pass.last_name}` : '';
+                const bookingNo = b.booking_number || '';
+                const method = p.payment_method || '';
+
+                const matchesSearch = [String(p.payment_id), bookingNo, passName, method].some(val => val.toLowerCase().includes(search));
+                const matchesMethod = methodFilter === "" || p.payment_method === methodFilter;
+                const matchesStatus = statusFilter === "" || p.payment_status === statusFilter;
+
+                return matchesSearch && matchesMethod && matchesStatus;
+            });
+
+            tbody.innerHTML = "";
+            let totalRev = 0;
+
+            filtered.forEach(p => {
+                const b = bookings.find(item => item.booking_id === p.booking_id) || {};
+                const pass = passengers.find(item => item.passenger_id === b.passenger_id) || {};
+                const passName = pass.first_name ? `${pass.first_name} ${pass.last_name}` : 'N/A';
+                const payDate = p.payment_date ? new Date(p.payment_date).toLocaleString('en-PH') : 'N/A';
+
+                if (p.payment_status === 'Paid') {
+                    totalRev += (Number(p.amount_paid) - Number(p.change_amount));
+                }
+
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${p.payment_id}</td>
+                    <td><strong>${b.booking_number || 'N/A'}</strong></td>
+                    <td>${passName}</td>
+                    <td>${payDate}</td>
+                    <td>₱${Number(p.amount_due).toFixed(2)}</td>
+                    <td>₱${Number(p.amount_paid).toFixed(2)}</td>
+                    <td>₱${Number(p.change_amount).toFixed(2)}</td>
+                    <td>${p.payment_method}</td>
+                    <td><span class="status ${(p.payment_status || '').toLowerCase()}">${p.payment_status}</span></td>
+                    <td class="actions">
+                        <button class="edit-btn" onclick="editPayment(${p.payment_id})">Edit</button>
+                        <button class="delete-btn" onclick="deletePayment(${p.payment_id})">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            document.getElementById("emptyMessage").style.display = filtered.length === 0 ? "block" : "none";
+            document.getElementById("totalRevenue").textContent = '₱' + totalRev.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById("totalTransactions").textContent = payments.length;
+            document.getElementById("paidCount").textContent = payments.filter(p => p.payment_status === "Paid").length;
+            document.getElementById("refundedCount").textContent = payments.filter(p => p.payment_status === "Refunded").length;
+        }
+
+        // Modal Form Controls
+        function openPaymentForm() {
+            document.getElementById("paymentForm").reset();
+            document.getElementById("paymentId").value = "";
+            document.getElementById("formTitle").textContent = "Process Payment";
+            document.getElementById("paymentModal").style.display = "flex";
+        }
+
+        function closePaymentForm() {
+            document.getElementById("paymentModal").style.display = "none";
+        }
+
+        // Form Submit Handler
+        document.getElementById("paymentForm").addEventListener("submit", async function(e) {
+            e.preventDefault();
+
+            const due = Number(document.getElementById("amountDue").value);
+            const paid = Number(document.getElementById("amountPaid").value);
+
+            if (paid < due) {
+                alert("Amount paid cannot be less than amount due.");
+                return;
+            }
+
+            const id = document.getElementById("paymentId").value;
+            const bookingId = Number(document.getElementById("bookingId").value);
+            const payload = {
+                booking_id: bookingId,
+                amount_due: due,
+                amount_paid: paid,
+                change_amount: Number(document.getElementById("changeAmount").value),
+                payment_method: document.getElementById("paymentMethod").value,
+                payment_status: document.getElementById("paymentStatus").value
+            };
+
+            if (id) {
+                await DB.update('payments', 'payment_id', id, payload);
+            } else {
+                await DB.create('payments', payload);
+                // Automatically update associated booking status to 'Paid'
+                if (payload.payment_status === 'Paid') {
+                    await DB.update('bookings', 'booking_id', bookingId, { booking_status: 'Paid' });
+                }
+            }
+
+            closePaymentForm();
+            fetchAllData();
+        });
+
+        // Edit Payment
+        function editPayment(id) {
+            const p = payments.find(item => item.payment_id === id);
+            if (!p) return;
+
+            document.getElementById("paymentId").value = p.payment_id;
+            document.getElementById("bookingId").value = p.booking_id;
+            document.getElementById("amountDue").value = p.amount_due;
+            document.getElementById("amountPaid").value = p.amount_paid;
+            document.getElementById("changeAmount").value = p.change_amount;
+            document.getElementById("paymentMethod").value = p.payment_method;
+            document.getElementById("paymentStatus").value = p.payment_status;
+
+            document.getElementById("formTitle").textContent = "Edit Payment";
+            document.getElementById("paymentModal").style.display = "flex";
+        }
+
+        // Delete Payment
+        async function deletePayment(id) {
+            if (confirm("Are you sure you want to delete this payment record?")) {
+                await DB.delete('payments', 'payment_id', id);
+                fetchAllData();
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', fetchAllData);
+    </script>
+</body>
 </html>

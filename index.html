@@ -1,9 +1,14 @@
+<!DOCTYPE html>
 <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Dashboard | Bus Ticketing System</title>
         <link rel="stylesheet" href="style.css">
+        <!-- Supabase Scripts -->
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+        <script src="supabase.js"></script>
+        <script src="supabase-db.js"></script>
     </head>
     <body>
 
@@ -24,7 +29,6 @@
                 <a href="ticket.html">▤ Tickets</a>
                 <a href="user.html">⚙ Users</a>
                 <a href="report.html">▥ Reports</a>
-                <a href="course_management.html">🎓Course</a>
             </nav>
         </aside>
 
@@ -35,51 +39,51 @@
                     <h2>Dashboard</h2>
                     <p>Bus Ticketing System Management</p>
                 </div>
-
             </header>
 
             <section class="welcome">
                 <div>
                     <h1>Welcome</h1>
-                    <p>Here's an overview of your bus ticketing operations.</p>
+                    <p>Here's an overview of your bus ticketing operations from Supabase.</p>
                 </div>
                 <span id="currentDate"></span>
             </section>
+
             <section class="stats-grid">
 
                 <div class="stat-card blue">
                     <div class="stat-icon">🚌</div>
-                    <div> 
-                        <p>Total Buses</p> 
-                        <h2>0</h2> 
-                        <small>Registered buses</small> 
+                    <div>  
+                        <p>Total Buses</p>  
+                        <h2 id="totalBuses">0</h2>  
+                        <small>Registered buses</small>  
                     </div>
                 </div>
 
                 <div class="stat-card green">
                     <div class="stat-icon">⌖</div>
-                    <div> 
-                        <p>Total Routes</p> 
-                        <h2>0</h2> 
-                        <small>Available routes</small> 
+                    <div>  
+                        <p>Total Routes</p>  
+                        <h2 id="totalRoutes">0</h2>  
+                        <small>Available routes</small>  
                     </div>
                 </div>
 
                 <div class="stat-card purple">
                     <div class="stat-icon">▦</div>
-                    <div> 
-                        <p>Today's Schedules</p> 
-                        <h2>0   </h2> 
-                        <small>Scheduled trips</small> 
+                    <div>  
+                        <p>Today's Schedules</p>  
+                        <h2 id="totalSchedules">0</h2>  
+                        <small>Scheduled trips</small>  
                     </div>
                 </div>
 
                 <div class="stat-card orange">
                     <div class="stat-icon">▤</div>
-                    <div> 
-                        <p>Total Bookings</p> 
-                        <h2>24</h2> 
-                        <small>Sample booking count</small> 
+                    <div>  
+                        <p>Total Bookings</p>  
+                        <h2 id="totalBookings">0</h2>  
+                        <small>Active bookings</small>  
                     </div>
                 </div>
 
@@ -89,7 +93,10 @@
                 <div class="panel bookings-panel">
                     <div class="panel-header">
                         <h2>Recent Bookings</h2>
-                        <a href="bookings.html">View All →</a>
+                        <a href="booking.html">View All →</a>
+                    </div>
+                    <div id="recentBookingsList" style="padding: 15px;">
+                        <p style="color: #64748b; font-size: 0.9rem;">Loading recent bookings...</p>
                     </div>
                 </div>
                 <div class="panel actions-panel">
@@ -97,19 +104,19 @@
                         <h2>Quick Actions</h2>
                     </div>
 
-                    <a href="buses.html" class="action-button blue-action">
+                    <a href="bus_management.html" class="action-button blue-action">
                         <span>🚌</span> Manage Buses <b>→</b>
                     </a>
 
-                    <a href="routes.html" class="action-button green-action">
+                    <a href="route_management.html" class="action-button green-action">
                         <span>⌖</span> Manage Routes <b>→</b>
                     </a>
 
-                    <a href="schedules.html" class="action-button purple-action">
+                    <a href="schedule_management.html" class="action-button purple-action">
                         <span>▦</span> Create Schedule <b>→</b>
                     </a>
 
-                    <a href="bookings.html" class="action-button orange-action">
+                    <a href="booking.html" class="action-button orange-action">
                         <span>▤</span> Manage Bookings <b>→</b>
                     </a>
                 </div>
@@ -120,7 +127,10 @@
             <section class="panel departures-panel">
                 <div class="panel-header">
                     <h2>Upcoming Departures</h2>
-                    <a href="schedules.html">View Schedules →</a>
+                    <a href="schedule_management.html">View Schedules →</a>
+                </div>
+                <div id="upcomingDeparturesList" style="padding: 15px;">
+                    <p style="color: #64748b; font-size: 0.9rem;">Loading schedules...</p>
                 </div>
             </section>
 
@@ -131,9 +141,8 @@
         </main>
 
         <script>
-            const dateElement = document.getElementById("currentDate");
-
-            dateElement.textContent = new Date().toLocaleDateString(
+            // Set current formatted date
+            document.getElementById("currentDate").textContent = new Date().toLocaleDateString(
                 "en-PH",
                 {
                     year: "numeric",
@@ -141,6 +150,55 @@
                     day: "numeric"
                 }
             );
+
+            // Fetch live statistics and records from Supabase
+            async function loadDashboardData() {
+                try {
+                    // Fetch data from respective tables using your DB helper
+                    const buses = await DB.getAll('buses');
+                    const routes = await DB.getAll('routes');
+                    const schedules = await DB.getAll('schedules');
+                    const bookings = await DB.getAll('bookings');
+
+                    // Update counter cards on the dashboard
+                    document.getElementById("totalBuses").textContent = buses.length;
+                    document.getElementById("totalRoutes").textContent = routes.length;
+                    document.getElementById("totalSchedules").textContent = schedules.length;
+                    document.getElementById("totalBookings").textContent = bookings.length;
+
+                    // Render Recent Bookings panel snippet
+                    const bookingsContainer = document.getElementById("recentBookingsList");
+                    if (bookings.length === 0) {
+                        bookingsContainer.innerHTML = '<p style="color: #64748b;">No bookings found.</p>';
+                    } else {
+                        bookingsContainer.innerHTML = bookings.slice(0, 5).map(b => `
+                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9;">
+                                <span><strong>${b.booking_number}</strong> (Seat: ${b.seat_number})</span>
+                                <span style="color: #16a34a; font-weight: 500;">₱${b.fare}</span>
+                            </div>
+                        `).join('');
+                    }
+
+                    // Render Upcoming Departures panel snippet
+                    const schedulesContainer = document.getElementById("upcomingDeparturesList");
+                    if (schedules.length === 0) {
+                        schedulesContainer.innerHTML = '<p style="color: #64748b;">No upcoming trips scheduled.</p>';
+                    } else {
+                        schedulesContainer.innerHTML = schedules.slice(0, 5).map(s => `
+                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9;">
+                                <span>Trip ID: #${s.schedule_id} — Date: ${s.departure_date} (${s.departure_time})</span>
+                                <span style="background: #e0f2fe; color: #0284c7; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem;">Seats: ${s.available_seats}</span>
+                            </div>
+                        `).join('');
+                    }
+
+                } catch (err) {
+                    console.error("Error loading dashboard data from Supabase:", err);
+                }
+            }
+
+            // Run when page finishes loading
+            window.addEventListener('DOMContentLoaded', loadDashboardData);
         </script>
 
     </body>

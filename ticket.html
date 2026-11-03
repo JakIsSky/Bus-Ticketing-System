@@ -1,39 +1,372 @@
+<!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Dashboard | Bus Ticketing System</title>
-        <link rel="stylesheet" href="style.css">
-    </head>
-    <body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket Management | Bus Ticketing System</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Supabase JS Library & Custom Database Helper -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-db.js"></script>
+</head>
+<body>
 
-        <aside class="sidebar">
-            <div class="logo">
-                <span class="logo-icon">🚌</span>
-                <h2>Bus Ticketing</h2>
+    <aside class="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🚌</span>
+            <h2>Bus Ticketing</h2>
+        </div>
+
+        <nav>
+            <a href="index.html">▦ Dashboard</a>
+            <a href="bus_management.html">🚌 Buses</a>
+            <a href="route_management.html">⌖ Routes</a>
+            <a href="schedule_management.html">▦ Schedules</a>
+            <a href="passenger_management.html">♟ Passengers</a>
+            <a href="booking.html">▤ Bookings</a>
+            <a href="payment.html">▣ Payments</a>
+            <a href="ticket.html" class="active">▤ Tickets</a>
+            <a href="user.html">⚙ Users</a>
+            <a href="report.html">▥ Reports</a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div>
+                <h2>Ticket Management</h2>
+                <p>Issue, view, print, and track valid travel tickets via Supabase.</p>
+            </div>
+        </header>
+
+        <section class="content">
+            <div class="page-heading">
+                <div>
+                    <h2>Issued Tickets</h2>
+                    <p>Issue new tickets for paid bookings and manage ticket status.</p>
+                </div>
+                <button class="add-btn" onclick="openTicketForm()">+ Issue New Ticket</button>
             </div>
 
-            <nav>
-                <a href="index.html" class="active">▦ Dashboard</a>
-                <a href="bus_management.html">🚌 Buses</a>
-                <a href="route_management.html">⌖ Routes</a>
-                <a href="schedule_management.html">▦ Schedules</a>
-                <a href="passenger_management.html">♟ Passengers</a>
-                <a href="booking.html">▤ Bookings</a>
-                <a href="payment.html">▣ Payments</a>
-                <a href="ticket.html">▤ Tickets</a>
-                <a href="user.html">⚙ Users</a>
-                <a href="report.html">▥ Reports</a>
-                <a href="course_management.html">🎓Course</a>
-            </nav>
-        </aside>
-        <main class="main-content">
-            <header class="topbar">
-                <div>
-                    <h2>Ticket</h2>
-                    <p>Manage and monitor your tickets.</p>
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <p>Total Issued</p>
+                    <h2 id="totalTickets">0</h2>
                 </div>
-            </header>
-        </main>
-    </body>
+                <div class="summary-card">
+                    <p>Valid Tickets</p>
+                    <h2 id="validTickets">0</h2>
+                </div>
+                <div class="summary-card">
+                    <p>Used / Boarded</p>
+                    <h2 id="usedTickets">0</h2>
+                </div>
+                <div class="summary-card">
+                    <p>Cancelled / Expired</p>
+                    <h2 id="cancelledTickets">0</h2>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="table-toolbar">
+                    <input type="search" id="searchInput" placeholder="Search ticket no, booking no, seat..." oninput="renderTickets()">
+                    <select id="statusFilter" onchange="renderTickets()">
+                        <option value="">All Status</option>
+                        <option value="Valid">Valid</option>
+                        <option value="Used">Used</option>
+                        <option value="Cancelled">Cancelled</option>
+                        <option value="Expired">Expired</option>
+                    </select>
+                </div>
+
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ticket ID</th>
+                                <th>Ticket Number</th>
+                                <th>Booking No.</th>
+                                <th>Passenger</th>
+                                <th>Seat No.</th>
+                                <th>Issue Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ticketTableBody"></tbody>
+                    </table>
+                </div>
+
+                <p id="emptyMessage" class="empty-message" style="display:none; text-align: center; padding: 20px; color: #666;">No tickets found. Click "+ Issue New Ticket" to get started.</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Issue/Edit Ticket Modal -->
+    <div class="modal" id="ticketModal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-heading">
+                <h2 id="formTitle">Issue New Ticket</h2>
+                <button class="close-btn" onclick="closeTicketForm()">×</button>
+            </div>
+
+            <form id="ticketForm">
+                <input type="hidden" id="ticketId">
+
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label for="bookingId">Select Booking</label>
+                        <select id="bookingId" onchange="onBookingSelect()" required>
+                            <option value="">Select a Booking</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="ticketNumber">Ticket Number</label>
+                        <input type="text" id="ticketNumber" placeholder="e.g. TKT-2026-001" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="seatNumber">Seat Number</label>
+                        <input type="text" id="seatNumber" placeholder="e.g. A12" required>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="ticketStatus">Ticket Status</label>
+                        <select id="ticketStatus" required>
+                            <option value="Valid">Valid</option>
+                            <option value="Used">Used</option>
+                            <option value="Cancelled">Cancelled</option>
+                            <option value="Expired">Expired</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="cancel-btn" onclick="closeTicketForm()">Cancel</button>
+                    <button type="submit" class="save-btn">Save Ticket</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Printable Ticket Preview Modal -->
+    <div class="modal" id="printModal" style="display:none;">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-heading">
+                <h2>Boarding Pass</h2>
+                <button class="close-btn" onclick="closePrintModal()">×</button>
+            </div>
+
+            <div id="printableArea" style="border: 2px dashed #007bff; padding: 20px; border-radius: 8px; font-family: monospace; background: #fafafa; margin-bottom: 20px;">
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0;">🚌 BUS TICKETING SYSTEM</h3>
+                    <p style="margin: 5px 0 0; font-size: 12px; color: #555;">Official Travel Boarding Pass</p>
+                </div>
+                <hr style="border-top: 1px dashed #ccc;">
+                <p><strong>Ticket No:</strong> <span id="printTicketNo"></span></p>
+                <p><strong>Booking No:</strong> <span id="printBookingNo"></span></p>
+                <p><strong>Passenger:</strong> <span id="printPassenger"></span></p>
+                <p><strong>Route:</strong> <span id="printRoute"></span></p>
+                <p><strong>Departure:</strong> <span id="printDeparture"></span></p>
+                <p><strong>Seat No:</strong> <span id="printSeat" style="font-size: 18px; color: #d9534f; font-weight: bold;"></span></p>
+                <p><strong>Fare Paid:</strong> <span id="printFare"></span></p>
+                <p><strong>Issue Date:</strong> <span id="printIssueDate"></span></p>
+                <p><strong>Status:</strong> <span id="printStatus"></span></p>
+                <hr style="border-top: 1px dashed #ccc;">
+                <p style="text-align: center; font-size: 11px; color: #777; margin-bottom: 0;">Present this ticket upon boarding. Have a safe journey!</p>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="cancel-btn" onclick="closePrintModal()">Close</button>
+                <button type="button" class="save-btn" onclick="window.print()">🖨 Print Ticket</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let tickets = [];
+        let bookings = [];
+        let passengers = [];
+        let schedules = [];
+        let routes = [];
+
+        // Fetch all required data from Supabase
+        async function fetchAllData() {
+            tickets = await DB.getAll('tickets');
+            bookings = await DB.getAll('bookings');
+            passengers = await DB.getAll('passengers');
+            schedules = await DB.getAll('schedules');
+            routes = await DB.getAll('routes');
+
+            populateBookingDropdown();
+            renderTickets();
+        }
+
+        // Populate dropdown with bookings that don't have tickets yet
+        function populateBookingDropdown() {
+            const bookingSelect = document.getElementById("bookingId");
+            bookingSelect.innerHTML = '<option value="">Select a Booking</option>';
+            
+            bookings.forEach(b => {
+                const pass = passengers.find(p => p.passenger_id === b.passenger_id);
+                const passName = pass ? `${pass.first_name} ${pass.last_name}` : `Passenger #${b.passenger_id}`;
+                
+                const opt = document.createElement("option");
+                opt.value = b.booking_id;
+                opt.dataset.seat = b.seat_number;
+                opt.textContent = `${b.booking_number} - ${passName} (Seat: ${b.seat_number}) [${b.booking_status}]`;
+                bookingSelect.appendChild(opt);
+            });
+        }
+
+        // Auto-fill seat number when booking is selected
+        function onBookingSelect() {
+            const select = document.getElementById("bookingId");
+            const selectedOpt = select.options[select.selectedIndex];
+            if (selectedOpt && selectedOpt.dataset.seat) {
+                document.getElementById("seatNumber").value = selectedOpt.dataset.seat;
+            }
+        }
+
+        // Render ticket table rows and summary counts
+        function renderTickets() {
+            const tbody = document.getElementById("ticketTableBody");
+            const search = document.getElementById("searchInput").value.toLowerCase().trim();
+            const statusFilter = document.getElementById("statusFilter").value;
+
+            const filtered = tickets.filter(t => {
+                const b = bookings.find(item => item.booking_id === t.booking_id) || {};
+                const pass = passengers.find(item => item.passenger_id === b.passenger_id) || {};
+                const passName = pass.first_name ? `${pass.first_name} ${pass.last_name}` : '';
+                const ticketNo = t.ticket_number || '';
+                const bookingNo = b.booking_number || '';
+                const seatNo = t.seat_number || '';
+
+                const matchesSearch = [ticketNo, bookingNo, passName, seatNo].some(val => val.toLowerCase().includes(search));
+                const matchesStatus = statusFilter === "" || t.ticket_status === statusFilter;
+
+                return matchesSearch && matchesStatus;
+            });
+
+            tbody.innerHTML = "";
+            filtered.forEach(t => {
+                const b = bookings.find(item => item.booking_id === t.booking_id) || {};
+                const pass = passengers.find(item => item.passenger_id === b.passenger_id) || {};
+                const passName = pass.first_name ? `${pass.first_name} ${pass.last_name}` : 'N/A';
+                const issueDate = t.issue_date ? new Date(t.issue_date).toLocaleDateString('en-PH') : 'N/A';
+
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${t.ticket_id}</td>
+                    <td><strong>${t.ticket_number}</strong></td>
+                    <td>${b.booking_number || 'N/A'}</td>
+                    <td>${passName}</td>
+                    <td>${t.seat_number}</td>
+                    <td>${issueDate}</td>
+                    <td><span class="status ${(t.ticket_status || '').toLowerCase()}">${t.ticket_status}</span></td>
+                    <td class="actions">
+                        <button class="add-btn" style="padding: 4px 8px; font-size: 12px;" onclick="printTicket(${t.ticket_id})">Print</button>
+                        <button class="edit-btn" onclick="editTicket(${t.ticket_id})">Edit</button>
+                        <button class="delete-btn" onclick="deleteTicket(${t.ticket_id})">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            document.getElementById("emptyMessage").style.display = filtered.length === 0 ? "block" : "none";
+            document.getElementById("totalTickets").textContent = tickets.length;
+            document.getElementById("validTickets").textContent = tickets.filter(t => t.ticket_status === "Valid").length;
+            document.getElementById("usedTickets").textContent = tickets.filter(t => t.ticket_status === "Used").length;
+            document.getElementById("cancelledTickets").textContent = tickets.filter(t => ['Cancelled', 'Expired'].includes(t.ticket_status)).length;
+        }
+
+        // Modal Controls
+        function openTicketForm() {
+            document.getElementById("ticketForm").reset();
+            document.getElementById("ticketId").value = "";
+            document.getElementById("ticketNumber").value = "TKT-" + new Date().getFullYear() + "-" + Math.floor(1000 + Math.random() * 9000);
+            document.getElementById("formTitle").textContent = "Issue New Ticket";
+            document.getElementById("ticketModal").style.display = "flex";
+        }
+
+        function closeTicketForm() {
+            document.getElementById("ticketModal").style.display = "none";
+        }
+
+        function closePrintModal() {
+            document.getElementById("printModal").style.display = "none";
+        }
+
+        // Submit Handler
+        document.getElementById("ticketForm").addEventListener("submit", async function(e) {
+            e.preventDefault();
+
+            const id = document.getElementById("ticketId").value;
+            const payload = {
+                booking_id: Number(document.getElementById("bookingId").value),
+                ticket_number: document.getElementById("ticketNumber").value.trim(),
+                seat_number: document.getElementById("seatNumber").value.trim(),
+                ticket_status: document.getElementById("ticketStatus").value
+            };
+
+            if (id) {
+                await DB.update('tickets', 'ticket_id', id, payload);
+            } else {
+                await DB.create('tickets', payload);
+            }
+
+            closeTicketForm();
+            fetchAllData();
+        });
+
+        // Edit Ticket
+        function editTicket(id) {
+            const t = tickets.find(item => item.ticket_id === id);
+            if (!t) return;
+
+            document.getElementById("ticketId").value = t.ticket_id;
+            document.getElementById("bookingId").value = t.booking_id;
+            document.getElementById("ticketNumber").value = t.ticket_number;
+            document.getElementById("seatNumber").value = t.seat_number;
+            document.getElementById("ticketStatus").value = t.ticket_status;
+
+            document.getElementById("formTitle").textContent = "Edit Ticket";
+            document.getElementById("ticketModal").style.display = "flex";
+        }
+
+        // Print Boarding Pass Modal View
+        function printTicket(id) {
+            const t = tickets.find(item => item.ticket_id === id);
+            if (!t) return;
+
+            const b = bookings.find(item => item.booking_id === t.booking_id) || {};
+            const pass = passengers.find(item => item.passenger_id === b.passenger_id) || {};
+            const sched = schedules.find(item => item.schedule_id === b.schedule_id) || {};
+            const r = routes.find(item => item.route_id === sched.route_id) || {};
+
+            document.getElementById("printTicketNo").textContent = t.ticket_number;
+            document.getElementById("printBookingNo").textContent = b.booking_number || 'N/A';
+            document.getElementById("printPassenger").textContent = pass.first_name ? `${pass.first_name} ${pass.last_name}` : 'N/A';
+            document.getElementById("printRoute").textContent = r.origin ? `${r.origin} ➔ ${r.destination}` : 'N/A';
+            document.getElementById("printDeparture").textContent = sched.departure_date ? `${sched.departure_date} @ ${sched.departure_time}` : 'N/A';
+            document.getElementById("printSeat").textContent = t.seat_number;
+            document.getElementById("printFare").textContent = '₱' + Number(b.fare || 0).toFixed(2);
+            document.getElementById("printIssueDate").textContent = t.issue_date ? new Date(t.issue_date).toLocaleDateString('en-PH') : 'N/A';
+            document.getElementById("printStatus").textContent = t.ticket_status;
+
+            document.getElementById("printModal").style.display = "flex";
+        }
+
+        // Delete Ticket
+        async function deleteTicket(id) {
+            if (confirm("Are you sure you want to delete this ticket?")) {
+                await DB.delete('tickets', 'ticket_id', id);
+                fetchAllData();
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', fetchAllData);
+    </script>
+</body>
 </html>

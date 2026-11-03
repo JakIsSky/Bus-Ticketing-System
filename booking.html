@@ -1,41 +1,339 @@
+<!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Dashboard | Bus Ticketing System</title>
-        <link rel="stylesheet" href="style.css">
-    </head>
-    <body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Management | Bus Ticketing System</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Supabase JS Library & Custom Database Helper -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-db.js"></script>
+</head>
+<body>
 
-        <aside class="sidebar">
-            <div class="logo">
-                <span class="logo-icon">🚌</span>
-                <h2>Bus Ticketing</h2>
+    <aside class="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🚌</span>
+            <h2>Bus Ticketing</h2>
+        </div>
+
+        <nav>
+            <a href="index.html">▦ Dashboard</a>
+            <a href="bus_management.html">🚌 Buses</a>
+            <a href="route_management.html">⌖ Routes</a>
+            <a href="schedule_management.html">▦ Schedules</a>
+            <a href="passenger_management.html">♟ Passengers</a>
+            <a href="booking.html" class="active">▤ Bookings</a>
+            <a href="payment.html">▣ Payments</a>
+            <a href="ticket.html">▤ Tickets</a>
+            <a href="user.html">⚙ Users</a>
+            <a href="report.html">▥ Reports</a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div>
+                <h2>Booking Management</h2>
+                <p>Manage passenger seat reservations and monitor bookings via Supabase.</p>
+            </div>
+        </header>
+
+        <section class="content">
+            <div class="page-heading">
+                <div>
+                    <h2>Booking List</h2>
+                    <p>Create, update, and manage all bus trip bookings.</p>
+                </div>
+                <button class="add-btn" onclick="openBookingForm()">+ Add New Booking</button>
             </div>
 
-            <nav>
-                <a href="index.html" class="active">▦ Dashboard</a>
-                <a href="bus_management.html">🚌 Buses</a>
-                <a href="route_management.html">⌖ Routes</a>
-                <a href="schedule_management.html">▦ Schedules</a>
-                <a href="passenger_management.html">♟ Passengers</a>
-                <a href="booking.html">▤ Bookings</a>
-                <a href="payment.html">▣ Payments</a>
-                <a href="ticket.html">▤ Tickets</a>
-                <a href="user.html">⚙ Users</a>
-                <a href="report.html">▥ Reports</a>
-                <a href="course_management.html">🎓Course</a>
-            </nav>
-        </aside>
-        <main class="main-content">
-            <header class="topbar">
-                <div>
-                    <h2>Booking Management</h2>
-                    <p>Manage and monitor your bookings.</p>
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <p>Total Bookings</p>
+                    <h2 id="totalBookings">0</h2>
                 </div>
-            </header>
-        </main>
+                <div class="summary-card">
+                    <p>Confirmed / Paid</p>
+                    <h2 id="confirmedBookings">0</h2>
+                </div>
+                <div class="summary-card">
+                    <p>Pending</p>
+                    <h2 id="pendingBookings">0</h2>
+                </div>
+                <div class="summary-card">
+                    <p>Cancelled</p>
+                    <h2 id="cancelledBookings">0</h2>
+                </div>
+            </div>
 
+            <div class="table-container">
+                <div class="table-toolbar">
+                    <input type="search" id="searchInput" placeholder="Search booking no, passenger, seat..." oninput="renderBookings()">
+                    <select id="statusFilter" onchange="renderBookings()">
+                        <option value="">All Status</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Confirmed">Confirmed</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
+                </div>
 
-    </body>
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Booking ID</th>
+                                <th>Booking No.</th>
+                                <th>Passenger</th>
+                                <th>Schedule / Route</th>
+                                <th>Date & Departure</th>
+                                <th>Seat No.</th>
+                                <th>Fare</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bookingTableBody"></tbody>
+                    </table>
+                </div>
+
+                <p id="emptyMessage" class="empty-message" style="display:none;">No bookings found. Click "+ Add New Booking" to get started.</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Add/Edit Booking Modal -->
+    <div class="modal" id="bookingModal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-heading">
+                <h2 id="formTitle">Add New Booking</h2>
+                <button class="close-btn" onclick="closeBookingForm()">×</button>
+            </div>
+
+            <form id="bookingForm">
+                <input type="hidden" id="bookingId">
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="bookingNumber">Booking Number</label>
+                        <input type="text" id="bookingNumber" placeholder="e.g. BK-2026-001" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="passengerId">Passenger</label>
+                        <select id="passengerId" required>
+                            <option value="">Select Passenger</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="scheduleId">Select Schedule</label>
+                        <select id="scheduleId" onchange="onScheduleSelect()" required>
+                            <option value="">Select Schedule & Route</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="seatNumber">Seat Number</label>
+                        <input type="text" id="seatNumber" placeholder="e.g. A12" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fare">Fare (₱)</label>
+                        <input type="number" id="fare" step="0.01" min="0" placeholder="0.00" required>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="bookingStatus">Booking Status</label>
+                        <select id="bookingStatus" required>
+                            <option value="Pending">Pending</option>
+                            <option value="Confirmed">Confirmed</option>
+                            <option value="Paid">Paid</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="cancel-btn" onclick="closeBookingForm()">Cancel</button>
+                    <button type="submit" class="save-btn">Save Booking</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let bookings = [];
+        let passengers = [];
+        let schedules = [];
+        let buses = [];
+        let routes = [];
+
+        // Load reference lookup data and bookings from Supabase
+        async function fetchAllData() {
+            passengers = await DB.getAll('passengers');
+            schedules = await DB.getAll('schedules');
+            buses = await DB.getAll('buses');
+            routes = await DB.getAll('routes');
+            bookings = await DB.getAll('bookings');
+
+            populateDropdowns();
+            renderBookings();
+        }
+
+        // Populate dropdown options for Passenger and Schedule
+        function populateDropdowns() {
+            const passSelect = document.getElementById("passengerId");
+            passSelect.innerHTML = '<option value="">Select Passenger</option>';
+            passengers.forEach(p => {
+                const opt = document.createElement("option");
+                opt.value = p.passenger_id;
+                opt.textContent = `${p.passenger_number} - ${p.first_name} ${p.last_name}`;
+                passSelect.appendChild(opt);
+            });
+
+            const schedSelect = document.getElementById("scheduleId");
+            schedSelect.innerHTML = '<option value="">Select Schedule & Route</option>';
+            schedules.forEach(s => {
+                const routeObj = routes.find(r => r.route_id === s.route_id);
+                const busObj = buses.find(b => b.bus_id === s.bus_id);
+                const routeName = routeObj ? `${routeObj.origin} ➔ ${routeObj.destination}` : 'Unknown Route';
+                const busNum = busObj ? busObj.bus_number : 'Bus';
+
+                const opt = document.createElement("option");
+                opt.value = s.schedule_id;
+                opt.dataset.fare = routeObj ? routeObj.fare : 0;
+                opt.textContent = `[ID: ${s.schedule_id}] ${routeName} (${busNum}) - ${s.departure_date} @ ${s.departure_time}`;
+                schedSelect.appendChild(opt);
+            });
+        }
+
+        // Auto-fill fare when schedule is picked
+        function onScheduleSelect() {
+            const schedSelect = document.getElementById("scheduleId");
+            const selectedOpt = schedSelect.options[schedSelect.selectedIndex];
+            if (selectedOpt && selectedOpt.dataset.fare) {
+                document.getElementById("fare").value = selectedOpt.dataset.fare;
+            }
+        }
+
+        // Render booking rows in table
+        function renderBookings() {
+            const tbody = document.getElementById("bookingTableBody");
+            const search = document.getElementById("searchInput").value.toLowerCase().trim();
+            const filter = document.getElementById("statusFilter").value;
+
+            const filtered = bookings.filter(b => {
+                const passObj = passengers.find(p => p.passenger_id === b.passenger_id);
+                const passName = passObj ? `${passObj.first_name} ${passObj.last_name}` : '';
+                const bookingNo = b.booking_number || '';
+                const seatNo = b.seat_number || '';
+
+                const matchesSearch = [bookingNo, passName, seatNo].some(val => val.toLowerCase().includes(search));
+                return matchesSearch && (filter === "" || b.booking_status === filter);
+            });
+
+            tbody.innerHTML = "";
+            filtered.forEach(b => {
+                const passObj = passengers.find(p => p.passenger_id === b.passenger_id);
+                const schedObj = schedules.find(s => s.schedule_id === b.schedule_id);
+                const routeObj = schedObj ? routes.find(r => r.route_id === schedObj.route_id) : null;
+
+                const passName = passObj ? `${passObj.first_name} ${passObj.last_name}` : `ID: ${b.passenger_id}`;
+                const routeName = routeObj ? `${routeObj.origin} ➔ ${routeObj.destination}` : `Schedule #${b.schedule_id}`;
+                const dateTime = schedObj ? `${schedObj.departure_date} ${schedObj.departure_time}` : 'N/A';
+
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${b.booking_id}</td>
+                    <td><strong>${b.booking_number}</strong></td>
+                    <td>${passName}</td>
+                    <td>${routeName}</td>
+                    <td>${dateTime}</td>
+                    <td>${b.seat_number}</td>
+                    <td>₱${Number(b.fare).toFixed(2)}</td>
+                    <td><span class="status ${(b.booking_status || '').toLowerCase()}">${b.booking_status}</span></td>
+                    <td class="actions">
+                        <button class="edit-btn" onclick="editBooking(${b.booking_id})">Edit</button>
+                        <button class="delete-btn" onclick="deleteBooking(${b.booking_id})">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            document.getElementById("emptyMessage").style.display = filtered.length === 0 ? "block" : "none";
+            document.getElementById("totalBookings").textContent = bookings.length;
+            document.getElementById("confirmedBookings").textContent = bookings.filter(b => ['Confirmed', 'Paid'].includes(b.booking_status)).length;
+            document.getElementById("pendingBookings").textContent = bookings.filter(b => b.booking_status === "Pending").length;
+            document.getElementById("cancelledBookings").textContent = bookings.filter(b => b.booking_status === "Cancelled").length;
+        }
+
+        // Modal Controls
+        function openBookingForm() {
+            document.getElementById("bookingForm").reset();
+            document.getElementById("bookingId").value = "";
+            document.getElementById("bookingNumber").value = "BK-" + new Date().getFullYear() + "-" + Math.floor(1000 + Math.random() * 9000);
+            document.getElementById("formTitle").textContent = "Add New Booking";
+            document.getElementById("bookingModal").style.display = "flex";
+        }
+
+        function closeBookingForm() {
+            document.getElementById("bookingModal").style.display = "none";
+        }
+
+        // Submit Handler for Insert / Update
+        document.getElementById("bookingForm").addEventListener("submit", async function(e) {
+            e.preventDefault();
+
+            const id = document.getElementById("bookingId").value;
+            const payload = {
+                booking_number: document.getElementById("bookingNumber").value.trim(),
+                passenger_id: Number(document.getElementById("passengerId").value),
+                schedule_id: Number(document.getElementById("scheduleId").value),
+                seat_number: document.getElementById("seatNumber").value.trim(),
+                fare: Number(document.getElementById("fare").value),
+                booking_status: document.getElementById("bookingStatus").value
+            };
+
+            if (id) {
+                await DB.update('bookings', 'booking_id', id, payload);
+            } else {
+                await DB.create('bookings', payload);
+            }
+
+            closeBookingForm();
+            fetchAllData();
+        });
+
+        // Edit Booking
+        function editBooking(id) {
+            const b = bookings.find(item => item.booking_id === id);
+            if (!b) return;
+
+            document.getElementById("bookingId").value = b.booking_id;
+            document.getElementById("bookingNumber").value = b.booking_number;
+            document.getElementById("passengerId").value = b.passenger_id;
+            document.getElementById("scheduleId").value = b.schedule_id;
+            document.getElementById("seatNumber").value = b.seat_number;
+            document.getElementById("fare").value = b.fare;
+            document.getElementById("bookingStatus").value = b.booking_status;
+
+            document.getElementById("formTitle").textContent = "Edit Booking";
+            document.getElementById("bookingModal").style.display = "flex";
+        }
+
+        // Delete Booking
+        async function deleteBooking(id) {
+            if (confirm("Are you sure you want to delete this booking?")) {
+                await DB.delete('bookings', 'booking_id', id);
+                fetchAllData();
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', fetchAllData);
+    </script>
+</body>
 </html>
