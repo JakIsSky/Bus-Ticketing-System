@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Booking Management | Bus Ticketing System</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Supabase JS Library & Custom Database Helper -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
     <script src="supabase-db.js"></script>
 </head>
 <body>
@@ -74,8 +74,6 @@
                         <option value="">All Status</option>
                         <option value="Pending">Pending</option>
                         <option value="Confirmed">Confirmed</option>
-                        <option value="Paid">Paid</option>
-                        <option value="Completed">Completed</option>
                         <option value="Cancelled">Cancelled</option>
                     </select>
                 </div>
@@ -109,7 +107,7 @@
         <div class="modal-content">
             <div class="modal-heading">
                 <h2 id="formTitle">Add New Booking</h2>
-                <button class="close-btn" onclick="closeBookingForm()">×</button>
+                <button type="button" class="close-btn" onclick="closeBookingForm()">×</button>
             </div>
 
             <form id="bookingForm">
@@ -150,8 +148,6 @@
                         <select id="bookingStatus" required>
                             <option value="Pending">Pending</option>
                             <option value="Confirmed">Confirmed</option>
-                            <option value="Paid">Paid</option>
-                            <option value="Completed">Completed</option>
                             <option value="Cancelled">Cancelled</option>
                         </select>
                     </div>
@@ -275,7 +271,7 @@
         function openBookingForm() {
             document.getElementById("bookingForm").reset();
             document.getElementById("bookingId").value = "";
-            document.getElementById("bookingNumber").value = "BK-" + new Date().getFullYear() + "-" + Math.floor(1000 + Math.random() * 9000);
+            document.getElementById("bookingNumber").value = ""; // Left empty for manual input
             document.getElementById("formTitle").textContent = "Add New Booking";
             document.getElementById("bookingModal").style.display = "flex";
         }

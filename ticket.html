@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ticket Management | Bus Ticketing System</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Supabase JS Library & Custom Database Helper -->
+    <link rel="stylesheet" href="ticket-print.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
     <script src="supabase-db.js"></script>
 </head>
 <body>
@@ -62,7 +63,7 @@
                     <h2 id="usedTickets">0</h2>
                 </div>
                 <div class="summary-card">
-                    <p>Cancelled / Expired</p>
+                    <p>Cancelled</p>
                     <h2 id="cancelledTickets">0</h2>
                 </div>
             </div>
@@ -75,7 +76,6 @@
                         <option value="Valid">Valid</option>
                         <option value="Used">Used</option>
                         <option value="Cancelled">Cancelled</option>
-                        <option value="Expired">Expired</option>
                     </select>
                 </div>
 
@@ -97,7 +97,7 @@
                     </table>
                 </div>
 
-                <p id="emptyMessage" class="empty-message" style="display:none; text-align: center; padding: 20px; color: #666;">No tickets found. Click "+ Issue New Ticket" to get started.</p>
+                <p id="emptyMessage" class="empty-message" style="display:none;">No tickets found. Click "+ Issue New Ticket" to get started.</p>
             </div>
         </section>
     </main>
@@ -107,7 +107,7 @@
         <div class="modal-content">
             <div class="modal-heading">
                 <h2 id="formTitle">Issue New Ticket</h2>
-                <button class="close-btn" onclick="closeTicketForm()">×</button>
+                <button type="button" class="close-btn" onclick="closeTicketForm()">×</button>
             </div>
 
             <form id="ticketForm">
@@ -137,7 +137,6 @@
                             <option value="Valid">Valid</option>
                             <option value="Used">Used</option>
                             <option value="Cancelled">Cancelled</option>
-                            <option value="Expired">Expired</option>
                         </select>
                     </div>
                 </div>
@@ -155,7 +154,7 @@
         <div class="modal-content" style="max-width: 450px;">
             <div class="modal-heading">
                 <h2>Boarding Pass</h2>
-                <button class="close-btn" onclick="closePrintModal()">×</button>
+                <button type="button" class="close-btn" onclick="closePrintModal()">×</button>
             </div>
 
             <div id="printableArea" style="border: 2px dashed #007bff; padding: 20px; border-radius: 8px; font-family: monospace; background: #fafafa; margin-bottom: 20px;">
@@ -191,7 +190,6 @@
         let schedules = [];
         let routes = [];
 
-        // Fetch all required data from Supabase
         async function fetchAllData() {
             tickets = await DB.getAll('tickets');
             bookings = await DB.getAll('bookings');
@@ -203,12 +201,20 @@
             renderTickets();
         }
 
-        // Populate dropdown with bookings that don't have tickets yet
-        function populateBookingDropdown() {
+        // Filters out bookings that already have an associated ticket (except the one being edited)
+        function populateBookingDropdown(currentBookingId = null) {
             const bookingSelect = document.getElementById("bookingId");
             bookingSelect.innerHTML = '<option value="">Select a Booking</option>';
             
+            const ticketedBookingIds = tickets
+                .filter(t => t.ticket_id !== Number(document.getElementById("ticketId").value))
+                .map(t => t.booking_id);
+
             bookings.forEach(b => {
+                if (ticketedBookingIds.includes(b.booking_id) && b.booking_id !== currentBookingId) {
+                    return; 
+                }
+
                 const pass = passengers.find(p => p.passenger_id === b.passenger_id);
                 const passName = pass ? `${pass.first_name} ${pass.last_name}` : `Passenger #${b.passenger_id}`;
                 
@@ -220,7 +226,6 @@
             });
         }
 
-        // Auto-fill seat number when booking is selected
         function onBookingSelect() {
             const select = document.getElementById("bookingId");
             const selectedOpt = select.options[select.selectedIndex];
@@ -229,7 +234,6 @@
             }
         }
 
-        // Render ticket table rows and summary counts
         function renderTickets() {
             const tbody = document.getElementById("ticketTableBody");
             const search = document.getElementById("searchInput").value.toLowerCase().trim();
@@ -278,15 +282,15 @@
             document.getElementById("totalTickets").textContent = tickets.length;
             document.getElementById("validTickets").textContent = tickets.filter(t => t.ticket_status === "Valid").length;
             document.getElementById("usedTickets").textContent = tickets.filter(t => t.ticket_status === "Used").length;
-            document.getElementById("cancelledTickets").textContent = tickets.filter(t => ['Cancelled', 'Expired'].includes(t.ticket_status)).length;
+            document.getElementById("cancelledTickets").textContent = tickets.filter(t => t.ticket_status === "Cancelled").length;
         }
 
-        // Modal Controls
         function openTicketForm() {
             document.getElementById("ticketForm").reset();
             document.getElementById("ticketId").value = "";
-            document.getElementById("ticketNumber").value = "TKT-" + new Date().getFullYear() + "-" + Math.floor(1000 + Math.random() * 9000);
+            document.getElementById("ticketNumber").value = "";
             document.getElementById("formTitle").textContent = "Issue New Ticket";
+            populateBookingDropdown();
             document.getElementById("ticketModal").style.display = "flex";
         }
 
@@ -298,13 +302,13 @@
             document.getElementById("printModal").style.display = "none";
         }
 
-        // Submit Handler
         document.getElementById("ticketForm").addEventListener("submit", async function(e) {
             e.preventDefault();
 
             const id = document.getElementById("ticketId").value;
+            const bookingId = Number(document.getElementById("bookingId").value);
             const payload = {
-                booking_id: Number(document.getElementById("bookingId").value),
+                booking_id: bookingId,
                 ticket_number: document.getElementById("ticketNumber").value.trim(),
                 seat_number: document.getElementById("seatNumber").value.trim(),
                 ticket_status: document.getElementById("ticketStatus").value
@@ -313,6 +317,11 @@
             if (id) {
                 await DB.update('tickets', 'ticket_id', id, payload);
             } else {
+                const existing = tickets.find(t => t.booking_id === bookingId);
+                if (existing) {
+                    alert("A ticket for this booking already exists!");
+                    return;
+                }
                 await DB.create('tickets', payload);
             }
 
@@ -320,12 +329,12 @@
             fetchAllData();
         });
 
-        // Edit Ticket
         function editTicket(id) {
             const t = tickets.find(item => item.ticket_id === id);
             if (!t) return;
 
             document.getElementById("ticketId").value = t.ticket_id;
+            populateBookingDropdown(t.booking_id);
             document.getElementById("bookingId").value = t.booking_id;
             document.getElementById("ticketNumber").value = t.ticket_number;
             document.getElementById("seatNumber").value = t.seat_number;
@@ -335,7 +344,6 @@
             document.getElementById("ticketModal").style.display = "flex";
         }
 
-        // Print Boarding Pass Modal View
         function printTicket(id) {
             const t = tickets.find(item => item.ticket_id === id);
             if (!t) return;
@@ -358,7 +366,6 @@
             document.getElementById("printModal").style.display = "flex";
         }
 
-        // Delete Ticket
         async function deleteTicket(id) {
             if (confirm("Are you sure you want to delete this ticket?")) {
                 await DB.delete('tickets', 'ticket_id', id);

@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
     <head>
         <meta charset="UTF-8">
@@ -50,68 +51,69 @@
                         + Add New Schedule
                     </button>
                 </div>
-                            <div class="summary-cards">
-                <div class="summary-card">
-                    <p>Total Schedules</p>
-                    <h2 id="totalSchedules">0</h2>
+                
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <p>Total Schedules</p>
+                        <h2 id="totalSchedules">0</h2>
+                    </div>
+
+                    <div class="summary-card">
+                        <p>Scheduled Trips</p>
+                        <h2 id="scheduledTrips">0</h2>
+                    </div>
+
+                    <div class="summary-card">
+                        <p>Ongoing Trips</p>
+                        <h2 id="ongoingTrips">0</h2>
+                    </div>
+
+                    <div class="summary-card">
+                        <p>Completed Trips</p>
+                        <h2 id="completedTrips">0</h2>
+                    </div>
                 </div>
 
-                <div class="summary-card">
-                    <p>Scheduled Trips</p>
-                    <h2 id="scheduledTrips">0</h2>
+                <div class="table-container">
+                    <div class="table-toolbar">
+                        <input type="search" id="searchInput" placeholder="Search schedule code, bus, or route..." oninput="renderSchedules()">
+                        <input type="date" id="dateFilter" aria-label="Filter by departure date" onchange="renderSchedules()">
+                        <select id="statusFilter" aria-label="Filter by schedule status" onchange="renderSchedules()">
+                            <option value="">All Status</option>
+                            <option value="Scheduled">Scheduled</option>
+                            <option value="Ongoing">Ongoing</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
+                    </div>
+
+                    <div class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Schedule ID</th>
+                                    <th>Schedule Code</th>
+                                    <th>Bus Number</th>
+                                    <th>Route</th>
+                                    <th>Departure Date</th>
+                                    <th>Departure Time</th>
+                                    <th>Available Seats</th>
+                                    <th>Fare</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+
+                            <tbody id="scheduleTableBody">
+                                <!-- Populated dynamically via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <p id="emptyMessage" class="empty-message" style="display: none;">
+                        No schedules found. Click "+ Add New Schedule" to get started.
+                    </p>
                 </div>
-
-                <div class="summary-card">
-                    <p>Ongoing Trips</p>
-                    <h2 id="ongoingTrips">0</h2>
-                </div>
-
-                <div class="summary-card">
-                    <p>Completed Trips</p>
-                    <h2 id="completedTrips">0</h2>
-                </div>
-            </div>
-
-                <div class="filters">
-                    <input type="text" id="searchInput" placeholder="Search schedule code..." oninput="renderSchedules()">
-
-                    <input type="date" id="dateFilter" aria-label="Filter by departure date" onchange="renderSchedules()">
-
-                    <select id="statusFilter" aria-label="Filter by schedule status" onchange="renderSchedules()">
-                        <option value="">All Status</option>
-                        <option value="Scheduled">Scheduled</option>
-                        <option value="Ongoing">Ongoing</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Cancelled">Cancelled</option>
-                    </select>
-                </div>
-
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Schedule ID</th>
-                                <th>Schedule Code</th>
-                                <th>Bus Number</th>
-                                <th>Route</th>
-                                <th>Departure Date</th>
-                                <th>Departure Time</th>
-                                <th>Available Seats</th>
-                                <th>Fare</th>
-                                <th>Status</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-
-                        <tbody id="scheduleTableBody">
-                            <!-- Populated dynamically via JS -->
-                        </tbody>
-                    </table>
-                </div>
-
-                <p id="emptyMessage" class="empty-message" style="display: none; text-align: center; padding: 20px;">
-                    No schedules found. Click "+ Add New Schedule" to get started.
-                </p>
 
             </section>
 
@@ -231,7 +233,7 @@
                     const code = sch.schedule_code || '';
 
                     const matchesSearch = [code, busNum, routeText].some(val => val.toLowerCase().includes(search));
-                    const matchesStatus = statusFilter === "" || sch.status === statusFilter;
+                    const matchesStatus = statusFilter === "" || sch.schedule_status === statusFilter;
                     const matchesDate = !dateFilter || sch.departure_date === dateFilter;
 
                     return matchesSearch && matchesStatus && matchesDate;
@@ -242,19 +244,20 @@
                 filtered.forEach(sch => {
                     const bus = buses.find(b => b.bus_id === sch.bus_id);
                     const route = routes.find(r => r.route_id === sch.route_id);
+                    const statusVal = sch.schedule_status || 'Scheduled';
 
                     const row = document.createElement("tr");
                     row.innerHTML = `
                         <td>${sch.schedule_id}</td>
-                        <td>${sch.schedule_code || 'N/A'}</td>
+                        <td><strong>${sch.schedule_code || 'N/A'}</strong></td>
                         <td>${bus ? bus.bus_number : 'N/A'}</td>
                         <td>${route ? `${route.origin} - ${route.destination}` : 'N/A'}</td>
                         <td>${sch.departure_date || 'N/A'}</td>
                         <td>${sch.departure_time || 'N/A'}</td>
                         <td>${sch.available_seats !== undefined ? sch.available_seats : 'N/A'}</td>
                         <td>₱${route ? Number(route.fare).toFixed(2) : '0.00'}</td>
-                        <td><span class="status ${(sch.status || '').toLowerCase()}">${sch.status}</span></td>
-                        <td>
+                        <td><span class="status ${statusVal.toLowerCase()}">${statusVal}</span></td>
+                        <td class="actions">
                             <button class="edit-btn" onclick="editSchedule(${sch.schedule_id})">Edit</button>
                             <button class="delete-btn" onclick="deleteSchedule(${sch.schedule_id})">Delete</button>
                         </td>
@@ -264,14 +267,15 @@
 
                 document.getElementById("emptyMessage").style.display = filtered.length === 0 ? "block" : "none";
                 document.getElementById("totalSchedules").textContent = schedules.length;
-                document.getElementById("scheduledTrips").textContent = schedules.filter(s => s.status === 'Scheduled').length;
-                document.getElementById("ongoingTrips").textContent = schedules.filter(s => s.status === 'Ongoing').length;
-                document.getElementById("completedTrips").textContent = schedules.filter(s => s.status === 'Completed').length;
+                document.getElementById("scheduledTrips").textContent = schedules.filter(s => s.schedule_status === 'Scheduled').length;
+                document.getElementById("ongoingTrips").textContent = schedules.filter(s => s.schedule_status === 'Ongoing').length;
+                document.getElementById("completedTrips").textContent = schedules.filter(s => s.schedule_status === 'Completed').length;
             }
 
             function openScheduleForm() {
                 document.getElementById("scheduleForm").reset();
                 document.getElementById("scheduleId").value = "";
+                document.getElementById("scheduleCode").value = "";
                 document.getElementById("scheduleFormTitle").textContent = "Add New Schedule";
                 document.getElementById("scheduleModal").style.display = "flex";
             }
@@ -290,7 +294,7 @@
                     departure_date: document.getElementById("departureDate").value,
                     departure_time: document.getElementById("departureTime").value,
                     available_seats: Number(document.getElementById("availableSeats").value),
-                    status: document.getElementById("scheduleStatus").value
+                    schedule_status: document.getElementById("scheduleStatus").value
                 };
 
                 if (id) {
@@ -314,7 +318,7 @@
                 document.getElementById("departureDate").value = sch.departure_date || '';
                 document.getElementById("departureTime").value = sch.departure_time || '';
                 document.getElementById("availableSeats").value = sch.available_seats || '';
-                document.getElementById("scheduleStatus").value = sch.status || 'Scheduled';
+                document.getElementById("scheduleStatus").value = sch.schedule_status || 'Scheduled';
 
                 document.getElementById("scheduleFormTitle").textContent = "Edit Schedule";
                 document.getElementById("scheduleModal").style.display = "flex";
@@ -332,4 +336,3 @@
 
     </body>
 </html>
-``` 

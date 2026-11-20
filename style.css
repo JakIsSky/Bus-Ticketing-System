@@ -466,21 +466,32 @@ button {
     box-shadow: 0 2px 8px #00000008;
 }
 
+/* FIXED TOOLBAR LAYOUT (Prevents date inputs from stretching) */
 .table-toolbar {
     display: flex;
     gap: 12px;
     margin-bottom: 20px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: space-between;
 }
 
-.table-toolbar input {
+.table-toolbar input[type="search"],
+.table-toolbar select#reportTypeSelect {
     flex: 1;
+    min-width: 220px;
+}
+
+.table-toolbar input[type="date"],
+.table-toolbar select:not(#reportTypeSelect) {
+    width: auto;
+    flex-shrink: 0;
 }
 
 .table-toolbar input,
 .table-toolbar select,
 .form-group input,
 .form-group select {
-    width: 100%;
     border: 1px solid #dce2ec;
     border-radius: 6px;
     padding: 11px;
@@ -542,7 +553,70 @@ tbody tr:hover {
     background: #fee2e2;
     color: #991b1b;
 }
-
+.status.paid {
+    background: #dcfce7;
+    color: #166534;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+.status.pending {
+    background: #fef3c7;
+    color: #92400e;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+.status.refunded {
+    background: #e0f2fe;
+    color: #0369a1;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+.status.failed {
+    background: #fee2e2;
+    color: #991b1b;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+.status.scheduled {
+    background: #dbeafe;
+    color: #1e40af;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+.status.ongoing {
+    background: #fef3c7;
+    color: #92400e;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+.status.completed {
+    background: #dcfce7;
+    color: #166534;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+.status.cancelled {
+    background: #fee2e2;
+    color: #991b1b;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
 .actions {
     display: flex;
     gap: 7px;
@@ -572,18 +646,6 @@ tbody tr:hover {
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
 }
 
-.section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 25px;
-    gap: 15px;
-}
-
-.section-header h2 {
-    margin-bottom: 8px;
-    font-size: 22px;
-}
 .add-btn {
     text-decoration: none;
     background-color: #2563eb;
@@ -736,7 +798,85 @@ tbody tr:hover {
     color: #ffffff;
     border-color: #2563eb;
 }
+/* Status badge styles matching design */
+.status.valid {
+    background: #dcfce7;
+    color: #166534;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+.status.used {
+    background: #dbeafe;
+    color: #1e40af;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+.status.cancelled {
+    background: #fee2e2;
+    color: #991b1b;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
 
+/* PRINT STYLING: Isolates only the boarding pass cleanly on a single page */
+@media print {
+    @page {
+        size: portrait;
+        margin: 10mm;
+    }
+    body, html {
+        background: #fff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    body * {
+        visibility: hidden;
+    }
+    #printModal, #printModal *, #printableArea, #printableArea * {
+        visibility: visible;
+    }
+    #printModal {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: #fff !important;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+    .modal-content {
+        box-shadow: none !important;
+        border: none !important;
+        background: #fff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    #printableArea {
+        border: 2px dashed #000 !important;
+        background: #fff !important;
+        box-shadow: none !important;
+        margin: 0 auto !important;
+        padding: 20px !important;
+        width: 100% !important;
+        max-width: 400px !important;
+    }
+    /* Hide modal close button and footer print buttons from print output */
+    .modal-heading .close-btn,
+    .modal-content .form-actions {
+        display: none !important;
+    }
+}
 /* Responsive Layout */
 
 @media (max-width: 1100px) {

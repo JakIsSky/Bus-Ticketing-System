@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Management | Bus Ticketing System</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Supabase JS Library & Custom Database Helper -->
+    <link rel="stylesheet" href="user-styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
     <script src="supabase-db.js"></script>
 </head>
 <body>
@@ -72,12 +73,9 @@
                     <input type="search" id="searchInput" placeholder="Search username or role..." oninput="renderUsers()">
                     <select id="roleFilter" onchange="renderUsers()">
                         <option value="">All Roles</option>
-                        <option value="Administrator">Administrator</option>
-                        <option value="Transportation Manager">Transportation Manager</option>
-                        <option value="Booking Staff">Booking Staff</option>
+                        <option value="Admin">Admin</option>
+                        <option value="Staff">Staff</option>
                         <option value="Cashier">Cashier</option>
-                        <option value="Dispatcher">Dispatcher</option>
-                        <option value="Management">Management</option>
                     </select>
                     <select id="statusFilter" onchange="renderUsers()">
                         <option value="">All Status</option>
@@ -101,7 +99,7 @@
                     </table>
                 </div>
 
-                <p id="emptyMessage" class="empty-message" style="display:none; text-align: center; padding: 20px; color: #666;">No users found. Click "+ Add New User" to get started.</p>
+                <p id="emptyMessage" class="empty-message" style="display:none;">No users found. Click "+ Add New User" to get started.</p>
             </div>
         </section>
     </main>
@@ -111,7 +109,7 @@
         <div class="modal-content">
             <div class="modal-heading">
                 <h2 id="formTitle">Add New User</h2>
-                <button class="close-btn" onclick="closeUserForm()">×</button>
+                <button type="button" class="close-btn" onclick="closeUserForm()">×</button>
             </div>
 
             <form id="userForm">
@@ -132,12 +130,9 @@
                         <label for="role">System Role</label>
                         <select id="role" required>
                             <option value="">Select Role</option>
-                            <option value="Administrator">Administrator</option>
-                            <option value="Transportation Manager">Transportation Manager</option>
-                            <option value="Booking Staff">Booking Staff</option>
+                            <option value="Admin">Admin</option>
+                            <option value="Staff">Staff</option>
                             <option value="Cashier">Cashier</option>
-                            <option value="Dispatcher">Dispatcher</option>
-                            <option value="Management">Management</option>
                         </select>
                     </div>
 
@@ -161,13 +156,11 @@
     <script>
         let users = [];
 
-        // Fetch users from Supabase table 'users'
         async function fetchUsers() {
             users = await DB.getAll('users');
             renderUsers();
         }
 
-        // Render user table rows and update summary card counts
         function renderUsers() {
             const tbody = document.getElementById("userTableBody");
             const search = document.getElementById("searchInput").value.toLowerCase().trim();
@@ -203,11 +196,10 @@
             document.getElementById("emptyMessage").style.display = filtered.length === 0 ? "block" : "none";
             document.getElementById("totalUsers").textContent = users.length;
             document.getElementById("activeUsers").textContent = users.filter(u => u.status === "Active").length;
-            document.getElementById("adminUsers").textContent = users.filter(u => u.role === "Administrator").length;
+            document.getElementById("adminUsers").textContent = users.filter(u => u.role === "Admin").length;
             document.getElementById("inactiveUsers").textContent = users.filter(u => u.status === "Inactive").length;
         }
 
-        // Modal Controls
         function openUserForm() {
             document.getElementById("userForm").reset();
             document.getElementById("userId").value = "";
@@ -220,7 +212,6 @@
             document.getElementById("userModal").style.display = "none";
         }
 
-        // Handle Add / Edit submit
         document.getElementById("userForm").addEventListener("submit", async function(e) {
             e.preventDefault();
 
@@ -233,7 +224,6 @@
             };
 
             if (id) {
-                // If editing and password is left unchanged or empty, avoid overwriting
                 if (!payload.password) {
                     delete payload.password;
                 }
@@ -246,7 +236,6 @@
             fetchUsers();
         });
 
-        // Edit User Record
         function editUser(id) {
             const u = users.find(item => item.user_id === id);
             if (!u) return;
@@ -254,7 +243,7 @@
             document.getElementById("userId").value = u.user_id;
             document.getElementById("username").value = u.username;
             document.getElementById("password").value = u.password || "";
-            document.getElementById("password").required = false; // Optional when updating
+            document.getElementById("password").required = false;
             document.getElementById("role").value = u.role;
             document.getElementById("status").value = u.status;
 
@@ -262,7 +251,6 @@
             document.getElementById("userModal").style.display = "flex";
         }
 
-        // Delete User Record
         async function deleteUser(id) {
             if (confirm("Are you sure you want to delete this user account?")) {
                 await DB.delete('users', 'user_id', id);

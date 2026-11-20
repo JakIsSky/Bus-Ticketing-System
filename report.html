@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reports & Analytics | Bus Ticketing System</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Supabase JS Library & Custom Database Helper -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
     <script src="supabase-db.js"></script>
 </head>
 <body>
@@ -62,17 +62,17 @@
 
             <!-- Report Toolbar & Switcher -->
             <div class="table-container">
-                <div class="table-toolbar" style="display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 20px;">
-                    <div style="display: flex; gap: 10px;">
-                        <select id="reportTypeSelect" onchange="switchReportType()">
-                            <option value="revenue">Revenue & Sales Report</option>
-                            <option value="occupancy">Schedule Occupancy Report</option>
-                            <option value="tickets">Ticket Log Manifest</option>
-                        </select>
-                        <input type="date" id="startDateFilter" onchange="loadReportData()">
-                        <input type="date" id="endDateFilter" onchange="loadReportData()">
+                <div class="table-toolbar">
+                    <select id="reportTypeSelect" onchange="switchReportType()">
+                        <option value="revenue">Revenue & Sales Report</option>
+                        <option value="occupancy">Schedule Occupancy Report</option>
+                        <option value="tickets">Ticket Log Manifest</option>
+                    </select>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <input type="date" id="startDateFilter" onchange="loadReportData()" aria-label="Start Date">
+                        <input type="date" id="endDateFilter" onchange="loadReportData()" aria-label="End Date">
+                        <button class="add-btn" onclick="exportToCSV()">📥 Export Report (CSV)</button>
                     </div>
-                    <button class="add-btn" onclick="exportToCSV()">📥 Export Report (CSV)</button>
                 </div>
 
                 <!-- Table Content -->
@@ -83,7 +83,7 @@
                     </table>
                 </div>
 
-                <p id="emptyReportMessage" class="empty-message" style="display:none; text-align: center; padding: 20px; color: #666;">No data available for the selected report filters.</p>
+                <p id="emptyReportMessage" class="empty-message" style="display:none;">No data available for the selected report filters.</p>
             </div>
         </section>
     </main>
@@ -154,10 +154,11 @@
                 thead.innerHTML = `
                     <tr>
                         <th>Schedule ID</th>
+                        <th>Schedule Code</th>
                         <th>Bus</th>
                         <th>Route</th>
                         <th>Departure Date</th>
-                        <th>Time</th>
+                        <th>Departure Time</th>
                         <th>Available Seats</th>
                         <th>Status</th>
                     </tr>
@@ -224,16 +225,18 @@
             schedules.forEach(s => {
                 const b = buses.find(item => item.bus_id === s.bus_id) || {};
                 const r = routes.find(item => item.route_id === s.route_id) || {};
+                const statusVal = s.schedule_status || 'Scheduled';
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${s.schedule_id}</td>
+                    <td><strong>${s.schedule_code || 'N/A'}</strong></td>
                     <td>${b.bus_number || 'N/A'} (${b.bus_type || ''})</td>
                     <td>${r.origin || ''} ➔ ${r.destination || ''}</td>
                     <td>${s.departure_date}</td>
-                    <td>${s.departure_time} - ${s.arrival_time}</td>
+                    <td>${s.departure_time}</td>
                     <td>${s.available_seats} / ${b.seating_capacity || 40}</td>
-                    <td><span class="status ${(s.schedule_status || '').toLowerCase()}">${s.schedule_status}</span></td>
+                    <td><span class="status ${statusVal.toLowerCase()}">${statusVal}</span></td>
                 `;
                 tbody.appendChild(tr);
             });
