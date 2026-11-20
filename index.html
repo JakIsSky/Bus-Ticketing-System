@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard | Bus Ticketing System</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style_2.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="supabase.js"></script>
@@ -33,168 +33,252 @@
     </aside>
 
     <main class="main-content">
+
         <header class="topbar">
             <div>
-                <h2>System Dashboard</h2>
-                <p>Real-time fleet, trip, booking, and financial overview via Supabase.</p>
-            </div>
-            <div class="admin-profile">
-                <div>
-                    <strong>Operations Overview</strong>
-                    <p id="currentDate">Loading date...</p>
-                </div>
-                <div class="avatar">🚌</div>
+                <h2>Dashboard</h2>
+                <p>Bus Ticketing System Management</p>
             </div>
         </header>
 
-        <section class="content">
-            <!-- Bus Statistics -->
-            <div class="dashboard-section">
-                <div class="section-label">Bus Statistics</div>
-                <div class="cards-5">
-                    <div class="metric-card">
-                        <p>Total Buses</p>
-                        <h3 id="totalBuses">0</h3>
-                    </div>
-                    <div class="metric-card">
-                        <p>Available Buses</p>
-                        <h3 id="availableBuses">0</h3>
-                    </div>
-                    <div class="metric-card">
-                        <p>Assigned Buses</p>
-                        <h3 id="assignedBuses">0</h3>
-                    </div>
-                    <div class="metric-card">
-                        <p>In Transit</p>
-                        <h3 id="inTransitBuses">0</h3>
-                    </div>
-                    <div class="metric-card">
-                        <p>Maintenance</p>
-                        <h3 id="maintenanceBuses">0</h3>
-                    </div>
+        <section class="welcome">
+            <div>
+                <h1>Welcome</h1>
+                <p>Here's an overview of your bus ticketing operations from Supabase.</p>
+            </div>
+            <span id="currentDate"></span>
+        </section>
+
+        <!-- Primary Overview Cards -->
+        <section class="stats-grid">
+            <div class="stat-card blue">
+                <div class="stat-icon">🚌</div>
+                <div>
+                    <p>Total Buses</p>
+                    <h2 id="totalBuses">0</h2>
+                    <small>Registered buses</small>
                 </div>
             </div>
 
-            <!-- Route Statistics -->
-            <div class="dashboard-section">
-                <div class="section-label">Route Statistics</div>
-                <div class="cards-2">
-                    <div class="metric-card">
-                        <p>Total Routes</p>
-                        <h3 id="totalRoutes">0</h3>
-                    </div>
-                    <div class="metric-card">
-                        <p>Active Routes</p>
-                        <h3 id="activeRoutes">0</h3>
-                    </div>
+            <div class="stat-card green">
+                <div class="stat-icon">⌖</div>
+                <div>
+                    <p>Total Routes</p>
+                    <h2 id="totalRoutes">0</h2>
+                    <small>Available routes</small>
                 </div>
             </div>
 
-            <!-- Schedule Statistics -->
-            <div class="dashboard-section">
-                <div class="section-label">Schedule Statistics</div>
-                <div class="cards-4">
-                    <div class="metric-card">
-                        <p>Today's Trips</p>
-                        <h3 id="todayTrips">0</h3>
-                    </div>
-                    <div class="metric-card">
-                        <p>Upcoming Trips</p>
-                        <h3 id="upcomingTrips">0</h3>
-                    </div>
-                    <div class="metric-card">
-                        <p>Completed Trips</p>
-                        <h3 id="completedTrips">0</h3>
-                    </div>
-                    <div class="metric-card">
-                        <p>Cancelled Trips</p>
-                        <h3 id="cancelledTrips">0</h3>
-                    </div>
+            <div class="stat-card purple">
+                <div class="stat-icon">▦</div>
+                <div>
+                    <p>Today's Trips</p>
+                    <h2 id="todayTrips">0</h2>
+                    <small>Scheduled today</small>
                 </div>
             </div>
 
-            <!-- Booking Statistics -->
-            <div class="dashboard-section">
-                <div class="section-label">Booking Statistics</div>
-                <div class="cards-5">
-                    <div class="metric-card">
-                        <p>Today's Bookings</p>
-                        <h3 id="todayBookings">0</h3>
-                    </div>
-                    <div class="metric-card">
-                        <p>Confirmed Bookings</p>
-                        <h3 id="confirmedBookings">0</h3>
-                    </div>
-                    <div class="metric-card">
-                        <p>Cancelled Bookings</p>
-                        <h3 id="cancelledBookings">0</h3>
-                    </div>
-                    <div class="metric-card">
-                        <p>Occupied Seats</p>
-                        <h3 id="occupiedSeats">0</h3>
-                    </div>
-                    <div class="metric-card">
-                        <p>Available Seats</p>
-                        <h3 id="availableSeats">0</h3>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Financial Statistics -->
-            <div class="dashboard-section">
-                <div class="section-label">Financial Statistics</div>
-                <div class="cards-3">
-                    <div class="metric-card">
-                        <p>Today's Revenue</p>
-                        <h3 id="todayRevenue">₱0.00</h3>
-                    </div>
-                    <div class="metric-card">
-                        <p>Monthly Revenue</p>
-                        <h3 id="monthlyRevenue">₱0.00</h3>
-                    </div>
-                    <div class="metric-card">
-                        <p>Outstanding Payments</p>
-                        <h3 id="outstandingPayments">₱0.00</h3>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Charts -->
-            <div class="dashboard-section">
-                <div class="section-label">Analytics Charts</div>
-                <div class="charts-grid">
-                    <div class="chart-card">
-                        <h3>Bookings by Route</h3>
-                        <div class="chart-box"><canvas id="bookingsByRouteChart"></canvas></div>
-                    </div>
-                    <div class="chart-card">
-                        <h3>Revenue by Month</h3>
-                        <div class="chart-box"><canvas id="revenueByMonthChart"></canvas></div>
-                    </div>
-                    <div class="chart-card">
-                        <h3>Passenger Volume</h3>
-                        <div class="chart-box"><canvas id="passengerVolumeChart"></canvas></div>
-                    </div>
-                    <div class="chart-card">
-                        <h3>Bus Occupancy</h3>
-                        <div class="chart-box"><canvas id="busOccupancyChart"></canvas></div>
-                    </div>
-                    <div class="chart-card">
-                        <h3>Popular Routes</h3>
-                        <div class="chart-box"><canvas id="popularRoutesChart"></canvas></div>
-                    </div>
+            <div class="stat-card orange">
+                <div class="stat-icon">▤</div>
+                <div>
+                    <p>Today's Bookings</p>
+                    <h2 id="todayBookings">0</h2>
+                    <small>Booked today</small>
                 </div>
             </div>
         </section>
+
+        <!-- Recent Bookings & Quick Actions -->
+        <section class="content-grid">
+            <div class="panel bookings-panel">
+                <div class="panel-header">
+                    <h2>Recent Bookings</h2>
+                    <a href="booking.html">View All →</a>
+                </div>
+                <div id="recentBookingsList" style="padding: 15px;">
+                    <p style="color: #64748b; font-size: 0.9rem;">Loading recent bookings...</p>
+                </div>
+            </div>
+
+            <div class="panel actions-panel">
+                <div class="panel-header">
+                    <h2>Quick Actions</h2>
+                </div>
+
+                <a href="bus_management.html" class="action-button blue-action">
+                    <span>🚌</span> Manage Buses <b>→</b>
+                </a>
+
+                <a href="route_management.html" class="action-button green-action">
+                    <span>⌖</span> Manage Routes <b>→</b>
+                </a>
+
+                <a href="schedule_management.html" class="action-button purple-action">
+                    <span>▦</span> Create Schedule <b>→</b>
+                </a>
+
+                <a href="booking.html" class="action-button orange-action">
+                    <span>▤</span> Manage Bookings <b>→</b>
+                </a>
+            </div>
+        </section>
+
+        <!-- Upcoming Departures -->
+        <section class="panel departures-panel">
+            <div class="panel-header">
+                <h2>Upcoming Departures</h2>
+                <a href="schedule_management.html">View Schedules →</a>
+            </div>
+            <div id="upcomingDeparturesList" style="padding: 15px;">
+                <p style="color: #64748b; font-size: 0.9rem;">Loading schedules...</p>
+            </div>
+        </section>
+
+        <!-- Bus Statistics -->
+        <div class="dashboard-section">
+            <div class="section-label">Bus Statistics</div>
+            <div class="cards-5">
+                <div class="metric-card">
+                    <p>Total Buses</p>
+                    <h3 id="statTotalBuses">0</h3>
+                </div>
+                <div class="metric-card">
+                    <p>Available Buses</p>
+                    <h3 id="statAvailableBuses">0</h3>
+                </div>
+                <div class="metric-card">
+                    <p>Assigned Buses</p>
+                    <h3 id="statAssignedBuses">0</h3>
+                </div>
+                <div class="metric-card">
+                    <p>In Transit</p>
+                    <h3 id="statInTransitBuses">0</h3>
+                </div>
+                <div class="metric-card">
+                    <p>Maintenance</p>
+                    <h3 id="statMaintenanceBuses">0</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Route Statistics -->
+        <div class="dashboard-section">
+            <div class="section-label">Route Statistics</div>
+            <div class="cards-2">
+                <div class="metric-card">
+                    <p>Total Routes</p>
+                    <h3 id="statTotalRoutes">0</h3>
+                </div>
+                <div class="metric-card">
+                    <p>Active Routes</p>
+                    <h3 id="statActiveRoutes">0</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Schedule Statistics -->
+        <div class="dashboard-section">
+            <div class="section-label">Schedule Statistics</div>
+            <div class="cards-4">
+                <div class="metric-card">
+                    <p>Today's Trips</p>
+                    <h3 id="statTodayTrips">0</h3>
+                </div>
+                <div class="metric-card">
+                    <p>Upcoming Trips</p>
+                    <h3 id="statUpcomingTrips">0</h3>
+                </div>
+                <div class="metric-card">
+                    <p>Completed Trips</p>
+                    <h3 id="statCompletedTrips">0</h3>
+                </div>
+                <div class="metric-card">
+                    <p>Cancelled Trips</p>
+                    <h3 id="statCancelledTrips">0</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Booking Statistics -->
+        <div class="dashboard-section">
+            <div class="section-label">Booking Statistics</div>
+            <div class="cards-5">
+                <div class="metric-card">
+                    <p>Today's Bookings</p>
+                    <h3 id="statTodayBookings">0</h3>
+                </div>
+                <div class="metric-card">
+                    <p>Confirmed Bookings</p>
+                    <h3 id="statConfirmedBookings">0</h3>
+                </div>
+                <div class="metric-card">
+                    <p>Cancelled Bookings</p>
+                    <h3 id="statCancelledBookings">0</h3>
+                </div>
+                <div class="metric-card">
+                    <p>Occupied Seats</p>
+                    <h3 id="statOccupiedSeats">0</h3>
+                </div>
+                <div class="metric-card">
+                    <p>Available Seats</p>
+                    <h3 id="statAvailableSeats">0</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Financial Statistics -->
+        <div class="dashboard-section">
+            <div class="section-label">Financial Statistics</div>
+            <div class="cards-3">
+                <div class="metric-card">
+                    <p>Today's Revenue</p>
+                    <h3 id="statTodayRevenue">₱0.00</h3>
+                </div>
+                <div class="metric-card">
+                    <p>Monthly Revenue</p>
+                    <h3 id="statMonthlyRevenue">₱0.00</h3>
+                </div>
+                <div class="metric-card">
+                    <p>Outstanding Payments</p>
+                    <h3 id="statOutstandingPayments">₱0.00</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Charts -->
+        <div class="dashboard-section">
+            <div class="section-label">Charts</div>
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3>Bookings by Route</h3>
+                    <div class="chart-box"><canvas id="bookingsByRouteChart"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h3>Revenue by Month</h3>
+                    <div class="chart-box"><canvas id="revenueByMonthChart"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h3>Passenger Volume</h3>
+                    <div class="chart-box"><canvas id="passengerVolumeChart"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h3>Bus Occupancy</h3>
+                    <div class="chart-box"><canvas id="busOccupancyChart"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h3>Popular Routes</h3>
+                    <div class="chart-box"><canvas id="popularRoutesChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>© 2026 Bus Ticketing System. All rights reserved.</p>
+        </footer>
+
     </main>
 
     <script>
-        let buses = [];
-        let routes = [];
-        let schedules = [];
-        let bookings = [];
-        let payments = [];
-        let tickets = [];
         let charts = {};
 
         function getLocalDateStr(dateObj = new Date()) {
@@ -211,115 +295,6 @@
             });
         }
 
-        async function loadDashboard() {
-            const now = new Date();
-            document.getElementById('currentDate').textContent = now.toLocaleDateString('en-PH', {
-                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-            });
-
-            [buses, routes, schedules, bookings, payments, tickets] = await Promise.all([
-                DB.getAll('buses'),
-                DB.getAll('routes'),
-                DB.getAll('schedules'),
-                DB.getAll('bookings'),
-                DB.getAll('payments'),
-                DB.getAll('tickets')
-            ]);
-
-            renderBusStats();
-            renderRouteStats();
-            renderScheduleStats(now);
-            renderBookingStats(now);
-            renderFinancialStats(now);
-            renderCharts(now);
-        }
-
-        function renderBusStats() {
-            document.getElementById('totalBuses').textContent = buses.length;
-            document.getElementById('availableBuses').textContent = buses.filter(b => b.status === 'Available').length;
-            document.getElementById('assignedBuses').textContent = buses.filter(b => b.status === 'Assigned').length;
-            document.getElementById('inTransitBuses').textContent = buses.filter(b => b.status === 'In Transit').length;
-            document.getElementById('maintenanceBuses').textContent = buses.filter(b => b.status === 'Maintenance').length;
-        }
-
-        function renderRouteStats() {
-            document.getElementById('totalRoutes').textContent = routes.length;
-            document.getElementById('activeRoutes').textContent = routes.filter(r => r.status === 'Active').length;
-        }
-
-        function renderScheduleStats(now) {
-            const todayStr = getLocalDateStr(now);
-
-            const todayTrips = schedules.filter(s => s.departure_date === todayStr).length;
-            const upcomingTrips = schedules.filter(s =>
-                s.schedule_status === 'Scheduled' && s.departure_date >= todayStr
-            ).length;
-            const completedTrips = schedules.filter(s => s.schedule_status === 'Completed').length;
-            const cancelledTrips = schedules.filter(s => s.schedule_status === 'Cancelled').length;
-
-            document.getElementById('todayTrips').textContent = todayTrips;
-            document.getElementById('upcomingTrips').textContent = upcomingTrips;
-            document.getElementById('completedTrips').textContent = completedTrips;
-            document.getElementById('cancelledTrips').textContent = cancelledTrips;
-        }
-
-        function renderBookingStats(now) {
-            const todayStr = getLocalDateStr(now);
-
-            const todayBookings = bookings.filter(b => {
-                if (!b.booking_date) return false;
-                return getLocalDateStr(new Date(b.booking_date)) === todayStr;
-            }).length;
-
-            const confirmedBookings = bookings.filter(b =>
-                b.booking_status === 'Confirmed' || b.booking_status === 'Paid' || b.booking_status === 'Completed'
-            ).length;
-
-            const cancelledBookings = bookings.filter(b => b.booking_status === 'Cancelled').length;
-
-            const activeBookings = bookings.filter(b => b.booking_status !== 'Cancelled');
-            const occupiedSeats = activeBookings.length;
-
-            const totalCapacity = schedules.reduce((sum, s) => {
-                const bus = buses.find(b => b.bus_id === s.bus_id);
-                const cap = s.available_seats !== undefined && s.available_seats !== null
-                    ? Number(s.available_seats)
-                    : Number(bus?.seating_capacity || 0);
-                return sum + cap;
-            }, 0);
-
-            document.getElementById('todayBookings').textContent = todayBookings;
-            document.getElementById('confirmedBookings').textContent = confirmedBookings;
-            document.getElementById('cancelledBookings').textContent = cancelledBookings;
-            document.getElementById('occupiedSeats').textContent = occupiedSeats;
-            document.getElementById('availableSeats').textContent = totalCapacity;
-        }
-
-        function renderFinancialStats(now) {
-            const todayStr = getLocalDateStr(now);
-            const currentMonthPrefix = todayStr.slice(0, 7);
-
-            let todayRev = 0;
-            let monthlyRev = 0;
-
-            payments.forEach(p => {
-                if (p.payment_status !== 'Paid') return;
-                const netPaid = Number(p.amount_paid || 0) - Number(p.change_amount || 0);
-                const pDateStr = p.payment_date ? getLocalDateStr(new Date(p.payment_date)) : '';
-
-                if (pDateStr === todayStr) todayRev += netPaid;
-                if (pDateStr.startsWith(currentMonthPrefix)) monthlyRev += netPaid;
-            });
-
-            const outstanding = payments
-                .filter(p => p.payment_status === 'Pending')
-                .reduce((sum, p) => sum + Number(p.amount_due || 0), 0);
-
-            document.getElementById('todayRevenue').textContent = formatPeso(todayRev);
-            document.getElementById('monthlyRevenue').textContent = formatPeso(monthlyRev);
-            document.getElementById('outstandingPayments').textContent = formatPeso(outstanding);
-        }
-
         function createOrUpdateChart(id, config) {
             if (charts[id]) {
                 charts[id].destroy();
@@ -328,144 +303,279 @@
             charts[id] = new Chart(ctx, config);
         }
 
-        function renderCharts(now) {
-            const routeCounts = {};
-            routes.forEach(r => {
-                const label = r.route_code ? `${r.route_code} (${r.origin} - ${r.destination})` : `${r.origin} - ${r.destination}`;
-                routeCounts[r.route_id] = { label, count: 0 };
-            });
+        document.getElementById("currentDate").textContent = new Date().toLocaleDateString(
+            "en-PH",
+            {
+                year: "numeric",
+                month: "long",
+                day: "numeric"
+            }
+        );
 
-            bookings.forEach(b => {
-                if (b.booking_status === 'Cancelled') return;
-                const sched = schedules.find(s => s.schedule_id === b.schedule_id);
-                if (sched && routeCounts[sched.route_id]) {
-                    routeCounts[sched.route_id].count += 1;
-                }
-            });
+        async function loadDashboardData() {
+            try {
+                const now = new Date();
+                const todayStr = getLocalDateStr(now);
+                const currentMonthPrefix = todayStr.slice(0, 7);
 
-            const sortedRoutes = Object.values(routeCounts).sort((a, b) => b.count - a.count);
-            const routeLabels = sortedRoutes.map(item => item.label);
-            const routeValues = sortedRoutes.map(item => item.count);
+                const [buses, routes, schedules, bookings, payments] = await Promise.all([
+                    DB.getAll('buses'),
+                    DB.getAll('routes'),
+                    DB.getAll('schedules'),
+                    DB.getAll('bookings'),
+                    DB.getAll('payments')
+                ]);
 
-            createOrUpdateChart('bookingsByRouteChart', {
-                type: 'bar',
-                data: {
-                    labels: routeLabels,
-                    datasets: [{
-                        label: 'Bookings',
-                        data: routeValues,
-                        backgroundColor: '#2563eb',
-                        borderRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } }
-                }
-            });
+                // Bus Statistics
+                const totalBuses = buses.length;
+                const availableBuses = buses.filter(b => b.status === 'Available').length;
+                const assignedBuses = buses.filter(b => b.status === 'Assigned').length;
+                const inTransitBuses = buses.filter(b => b.status === 'In Transit').length;
+                const maintenanceBuses = buses.filter(b => b.status === 'Maintenance').length;
 
-            const monthTotals = {};
-            payments.filter(p => p.payment_status === 'Paid').forEach(p => {
-                if (!p.payment_date) return;
-                const d = new Date(p.payment_date);
-                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                const netPaid = Number(p.amount_paid || 0) - Number(p.change_amount || 0);
-                monthTotals[key] = (monthTotals[key] || 0) + netPaid;
-            });
+                document.getElementById("totalBuses").textContent = totalBuses;
+                document.getElementById("statTotalBuses").textContent = totalBuses;
+                document.getElementById("statAvailableBuses").textContent = availableBuses;
+                document.getElementById("statAssignedBuses").textContent = assignedBuses;
+                document.getElementById("statInTransitBuses").textContent = inTransitBuses;
+                document.getElementById("statMaintenanceBuses").textContent = maintenanceBuses;
 
-            const monthKeys = Object.keys(monthTotals).sort();
-            createOrUpdateChart('revenueByMonthChart', {
-                type: 'line',
-                data: {
-                    labels: monthKeys,
-                    datasets: [{
-                        label: 'Revenue (₱)',
-                        data: monthKeys.map(k => monthTotals[k]),
-                        borderColor: '#16a34a',
-                        backgroundColor: 'rgba(22, 163, 74, 0.15)',
-                        fill: true,
-                        tension: 0.3
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
-            });
+                // Route Statistics
+                const totalRoutes = routes.length;
+                const activeRoutes = routes.filter(r => r.status === 'Active').length;
 
-            const volByDate = {};
-            bookings.filter(b => b.booking_status !== 'Cancelled').forEach(b => {
-                const key = b.booking_date ? getLocalDateStr(new Date(b.booking_date)) : 'Unknown';
-                volByDate[key] = (volByDate[key] || 0) + 1;
-            });
-            const volKeys = Object.keys(volByDate).sort().slice(-7);
+                document.getElementById("totalRoutes").textContent = totalRoutes;
+                document.getElementById("statTotalRoutes").textContent = totalRoutes;
+                document.getElementById("statActiveRoutes").textContent = activeRoutes;
 
-            createOrUpdateChart('passengerVolumeChart', {
-                type: 'bar',
-                data: {
-                    labels: volKeys,
-                    datasets: [{
-                        label: 'Passengers',
-                        data: volKeys.map(k => volByDate[k]),
-                        backgroundColor: '#7c3aed',
-                        borderRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } }
-                }
-            });
-
-            const busLabels = buses.map(b => b.bus_number);
-            const busOccupancyPct = buses.map(b => {
-                const busSchedules = schedules.filter(s => s.bus_id === b.bus_id).map(s => s.schedule_id);
-                const bookedCount = bookings.filter(bk =>
-                    busSchedules.includes(bk.schedule_id) && bk.booking_status !== 'Cancelled'
+                // Schedule Statistics
+                const todayTrips = schedules.filter(s => s.departure_date === todayStr).length;
+                const upcomingTrips = schedules.filter(s =>
+                    s.schedule_status === 'Scheduled' && s.departure_date >= todayStr
                 ).length;
-                const cap = Number(b.seating_capacity || 0);
-                return cap > 0 ? Math.min(100, Math.round((bookedCount / cap) * 100)) : 0;
-            });
+                const completedTrips = schedules.filter(s => s.schedule_status === 'Completed').length;
+                const cancelledTrips = schedules.filter(s => s.schedule_status === 'Cancelled').length;
 
-            createOrUpdateChart('busOccupancyChart', {
-                type: 'bar',
-                data: {
-                    labels: busLabels,
-                    datasets: [{
-                        label: 'Occupancy (%)',
-                        data: busOccupancyPct,
-                        backgroundColor: '#ea580c',
-                        borderRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: { beginAtZero: true, max: 100 }
+                document.getElementById("todayTrips").textContent = todayTrips;
+                document.getElementById("statTodayTrips").textContent = todayTrips;
+                document.getElementById("statUpcomingTrips").textContent = upcomingTrips;
+                document.getElementById("statCompletedTrips").textContent = completedTrips;
+                document.getElementById("statCancelledTrips").textContent = cancelledTrips;
+
+                // Booking Statistics
+                const todayBookings = bookings.filter(b =>
+                    b.booking_date && getLocalDateStr(new Date(b.booking_date)) === todayStr
+                ).length;
+                const confirmedBookings = bookings.filter(b =>
+                    b.booking_status === 'Confirmed' || b.booking_status === 'Paid' || b.booking_status === 'Completed'
+                ).length;
+                const cancelledBookings = bookings.filter(b => b.booking_status === 'Cancelled').length;
+                const occupiedSeats = bookings.filter(b => b.booking_status !== 'Cancelled').length;
+                const availableSeats = schedules.reduce((sum, s) => {
+                    const bus = buses.find(b => b.bus_id === s.bus_id);
+                    const seats = s.available_seats !== undefined && s.available_seats !== null
+                        ? Number(s.available_seats)
+                        : Number(bus?.seating_capacity || 0);
+                    return sum + seats;
+                }, 0);
+
+                document.getElementById("todayBookings").textContent = todayBookings;
+                document.getElementById("statTodayBookings").textContent = todayBookings;
+                document.getElementById("statConfirmedBookings").textContent = confirmedBookings;
+                document.getElementById("statCancelledBookings").textContent = cancelledBookings;
+                document.getElementById("statOccupiedSeats").textContent = occupiedSeats;
+                document.getElementById("statAvailableSeats").textContent = availableSeats;
+
+                // Financial Statistics
+                let todayRevenue = 0;
+                let monthlyRevenue = 0;
+
+                payments.forEach(p => {
+                    if (p.payment_status !== 'Paid') return;
+                    const netPaid = Number(p.amount_paid || 0) - Number(p.change_amount || 0);
+                    const pDateStr = p.payment_date ? getLocalDateStr(new Date(p.payment_date)) : '';
+
+                    if (pDateStr === todayStr) todayRevenue += netPaid;
+                    if (pDateStr.startsWith(currentMonthPrefix)) monthlyRevenue += netPaid;
+                });
+
+                const outstandingPayments = payments
+                    .filter(p => p.payment_status === 'Pending')
+                    .reduce((sum, p) => sum + Number(p.amount_due || 0), 0);
+
+                document.getElementById("statTodayRevenue").textContent = formatPeso(todayRevenue);
+                document.getElementById("statMonthlyRevenue").textContent = formatPeso(monthlyRevenue);
+                document.getElementById("statOutstandingPayments").textContent = formatPeso(outstandingPayments);
+
+                // Recent Bookings Panel
+                const bookingsContainer = document.getElementById("recentBookingsList");
+                if (bookings.length === 0) {
+                    bookingsContainer.innerHTML = '<p style="color: #64748b;">No bookings found.</p>';
+                } else {
+                    bookingsContainer.innerHTML = bookings.slice(0, 5).map(b => `
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9;">
+                            <span><strong>${b.booking_number}</strong> (Seat: ${b.seat_number})</span>
+                            <span style="color: #16a34a; font-weight: 500;">₱${Number(b.fare || 0).toFixed(2)}</span>
+                        </div>
+                    `).join('');
+                }
+
+                // Upcoming Departures Panel
+                const schedulesContainer = document.getElementById("upcomingDeparturesList");
+                if (schedules.length === 0) {
+                    schedulesContainer.innerHTML = '<p style="color: #64748b;">No upcoming trips scheduled.</p>';
+                } else {
+                    schedulesContainer.innerHTML = schedules.slice(0, 5).map(s => `
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9;">
+                            <span>Trip ID: #${s.schedule_id} — Date: ${s.departure_date} (${s.departure_time})</span>
+                            <span style="background: #e0f2fe; color: #0284c7; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem;">Seats: ${s.available_seats}</span>
+                        </div>
+                    `).join('');
+                }
+
+                // Charts
+                const routeMap = {};
+                routes.forEach(r => {
+                    const label = r.route_code ? `${r.route_code} (${r.origin} - ${r.destination})` : `${r.origin} - ${r.destination}`;
+                    routeMap[r.route_id] = { label, count: 0 };
+                });
+
+                bookings.forEach(b => {
+                    if (b.booking_status === 'Cancelled') return;
+                    const sched = schedules.find(s => s.schedule_id === b.schedule_id);
+                    if (sched && routeMap[sched.route_id]) {
+                        routeMap[sched.route_id].count += 1;
                     }
-                }
-            });
+                });
 
-            createOrUpdateChart('popularRoutesChart', {
-                type: 'doughnut',
-                data: {
-                    labels: routeLabels.slice(0, 5),
-                    datasets: [{
-                        data: routeValues.slice(0, 5),
-                        backgroundColor: ['#2563eb', '#16a34a', '#f59e0b', '#8b5cf6', '#ef4444']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
-            });
+                const sortedRoutes = Object.values(routeMap).sort((a, b) => b.count - a.count);
+                const routeLabels = sortedRoutes.map(item => item.label);
+                const routeCounts = sortedRoutes.map(item => item.count);
+
+                createOrUpdateChart('bookingsByRouteChart', {
+                    type: 'bar',
+                    data: {
+                        labels: routeLabels,
+                        datasets: [{
+                            label: 'Bookings',
+                            data: routeCounts,
+                            backgroundColor: '#2563eb',
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } }
+                    }
+                });
+
+                const monthTotals = {};
+                payments.filter(p => p.payment_status === 'Paid').forEach(p => {
+                    if (!p.payment_date) return;
+                    const d = new Date(p.payment_date);
+                    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                    const netPaid = Number(p.amount_paid || 0) - Number(p.change_amount || 0);
+                    monthTotals[key] = (monthTotals[key] || 0) + netPaid;
+                });
+                const monthKeys = Object.keys(monthTotals).sort();
+
+                createOrUpdateChart('revenueByMonthChart', {
+                    type: 'line',
+                    data: {
+                        labels: monthKeys,
+                        datasets: [{
+                            label: 'Revenue (₱)',
+                            data: monthKeys.map(k => monthTotals[k]),
+                            borderColor: '#16a34a',
+                            backgroundColor: 'rgba(22, 163, 74, 0.15)',
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+
+                const volumeByDate = {};
+                bookings.filter(b => b.booking_status !== 'Cancelled').forEach(b => {
+                    const key = b.booking_date ? getLocalDateStr(new Date(b.booking_date)) : 'Unknown';
+                    volumeByDate[key] = (volumeByDate[key] || 0) + 1;
+                });
+                const volumeKeys = Object.keys(volumeByDate).sort().slice(-7);
+
+                createOrUpdateChart('passengerVolumeChart', {
+                    type: 'bar',
+                    data: {
+                        labels: volumeKeys,
+                        datasets: [{
+                            label: 'Passengers',
+                            data: volumeKeys.map(k => volumeByDate[k]),
+                            backgroundColor: '#7c3aed',
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } }
+                    }
+                });
+
+                const busLabels = buses.map(b => b.bus_number);
+                const busOccupancyRates = buses.map(b => {
+                    const busSchedIds = schedules.filter(s => s.bus_id === b.bus_id).map(s => s.schedule_id);
+                    const booked = bookings.filter(bk =>
+                        busSchedIds.includes(bk.schedule_id) && bk.booking_status !== 'Cancelled'
+                    ).length;
+                    const cap = Number(b.seating_capacity || 0);
+                    return cap > 0 ? Math.min(100, Math.round((booked / cap) * 100)) : 0;
+                });
+
+                createOrUpdateChart('busOccupancyChart', {
+                    type: 'bar',
+                    data: {
+                        labels: busLabels,
+                        datasets: [{
+                            label: 'Occupancy (%)',
+                            data: busOccupancyRates,
+                            backgroundColor: '#ea580c',
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: true, max: 100 }
+                        }
+                    }
+                });
+
+                createOrUpdateChart('popularRoutesChart', {
+                    type: 'doughnut',
+                    data: {
+                        labels: routeLabels.slice(0, 5),
+                        datasets: [{
+                            data: routeCounts.slice(0, 5),
+                            backgroundColor: ['#2563eb', '#16a34a', '#f59e0b', '#8b5cf6', '#ef4444']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+
+            } catch (err) {
+                console.error("Error loading dashboard data from Supabase:", err);
+            }
         }
 
-        window.addEventListener('DOMContentLoaded', loadDashboard);
+        window.addEventListener('DOMContentLoaded', loadDashboardData);
     </script>
+
 </body>
 </html>
