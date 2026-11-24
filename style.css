@@ -10,6 +10,133 @@ body {
     color: #1e293b;
 }
 
+/* LOGIN PAGE */
+
+.login-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: #f1f5f9;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 420px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 28px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.login-header h1 {
+    font-size: 22px;
+    color: #102a43;
+    margin-top: 8px;
+}
+
+.login-header p {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+.login-error {
+    display: none;
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+
+/* LOGIN PAGE - tabs, notices, password rules */
+
+.auth-tabs {
+    display: flex;
+    gap: 6px;
+    margin: 0 0 18px;
+    background: #f1f5f9;
+    padding: 4px;
+    border-radius: 10px;
+}
+
+.auth-tab {
+    flex: 1;
+    padding: 9px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    font-weight: 600;
+    cursor: pointer;
+    color: #475569;
+}
+
+.auth-tab.active {
+    background: #ffffff;
+    color: #2563eb;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.login-notice {
+    display: none;
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+    font-size: 13px;
+}
+
+.login-notice.success {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.login-notice.info {
+    background: #e0f2fe;
+    color: #075985;
+}
+
+.pw-rules {
+    list-style: none;
+    margin: 6px 0 0;
+    padding: 0;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.pw-rules li::before {
+    content: "\25CB  ";
+}
+
+.pw-rules li.ok {
+    color: #16a34a;
+}
+
+.pw-rules li.ok::before {
+    content: "\2714  ";
+}
+
+.hidden-form {
+    display: none;
+}
+
+.submit-full {
+    width: 100%;
+    margin-top: 8px;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
 /* SIDEBAR */
 
 .sidebar {

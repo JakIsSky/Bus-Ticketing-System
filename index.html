@@ -4,11 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard | Bus Ticketing System</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style_2.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="supabase.js"></script>
     <script src="supabase-db.js"></script>
+    <script src="auth.js"></script>
 </head>
 <body>
 
@@ -43,7 +44,7 @@
 
         <section class="welcome">
             <div>
-                <h1>Welcome</h1>
+                <h1 id="welcomeTitle">Welcome</h1>
                 <p>Here's an overview of your bus ticketing operations from Supabase.</p>
             </div>
             <span id="currentDate"></span>
@@ -227,7 +228,7 @@
         </div>
 
         <!-- Financial Statistics -->
-        <div class="dashboard-section">
+        <div class="dashboard-section" id="financialSection">
             <div class="section-label">Financial Statistics</div>
             <div class="cards-3">
                 <div class="metric-card">
@@ -313,20 +314,33 @@
         );
 
         async function loadDashboardData() {
+            const session = await Auth.requireAuth();
+            if (!session) return;
+
+            document.getElementById("welcomeTitle").textContent =
+                'Welcome, ' + (session.profile.full_name || session.profile.username);
+
+            // Roles without payment/report access don't see the financial figures
+            if (!Auth.canAccess('payment.html') && !Auth.canAccess('report.html')) {
+                document.getElementById("financialSection").style.display = 'none';
+            }
+
+            // A table the role may not read (blocked by the database) just counts as empty
+            const safeGetAll = (table) => Promise.resolve(DB.getAll(table)).then(r => r || []).catch(() => []);
+
             try {
                 const now = new Date();
                 const todayStr = getLocalDateStr(now);
                 const currentMonthPrefix = todayStr.slice(0, 7);
 
                 const [buses, routes, schedules, bookings, payments] = await Promise.all([
-                    DB.getAll('buses'),
-                    DB.getAll('routes'),
-                    DB.getAll('schedules'),
-                    DB.getAll('bookings'),
-                    DB.getAll('payments')
+                    safeGetAll('buses'),
+                    safeGetAll('routes'),
+                    safeGetAll('schedules'),
+                    safeGetAll('bookings'),
+                    safeGetAll('payments')
                 ]);
 
-                // Bus Statistics
                 const totalBuses = buses.length;
                 const availableBuses = buses.filter(b => b.status === 'Available').length;
                 const assignedBuses = buses.filter(b => b.status === 'Assigned').length;
@@ -340,7 +354,6 @@
                 document.getElementById("statInTransitBuses").textContent = inTransitBuses;
                 document.getElementById("statMaintenanceBuses").textContent = maintenanceBuses;
 
-                // Route Statistics
                 const totalRoutes = routes.length;
                 const activeRoutes = routes.filter(r => r.status === 'Active').length;
 
@@ -348,7 +361,6 @@
                 document.getElementById("statTotalRoutes").textContent = totalRoutes;
                 document.getElementById("statActiveRoutes").textContent = activeRoutes;
 
-                // Schedule Statistics
                 const todayTrips = schedules.filter(s => s.departure_date === todayStr).length;
                 const upcomingTrips = schedules.filter(s =>
                     s.schedule_status === 'Scheduled' && s.departure_date >= todayStr
@@ -362,7 +374,6 @@
                 document.getElementById("statCompletedTrips").textContent = completedTrips;
                 document.getElementById("statCancelledTrips").textContent = cancelledTrips;
 
-                // Booking Statistics
                 const todayBookings = bookings.filter(b =>
                     b.booking_date && getLocalDateStr(new Date(b.booking_date)) === todayStr
                 ).length;
@@ -386,7 +397,6 @@
                 document.getElementById("statOccupiedSeats").textContent = occupiedSeats;
                 document.getElementById("statAvailableSeats").textContent = availableSeats;
 
-                // Financial Statistics
                 let todayRevenue = 0;
                 let monthlyRevenue = 0;
 
@@ -407,7 +417,6 @@
                 document.getElementById("statMonthlyRevenue").textContent = formatPeso(monthlyRevenue);
                 document.getElementById("statOutstandingPayments").textContent = formatPeso(outstandingPayments);
 
-                // Recent Bookings Panel
                 const bookingsContainer = document.getElementById("recentBookingsList");
                 if (bookings.length === 0) {
                     bookingsContainer.innerHTML = '<p style="color: #64748b;">No bookings found.</p>';
@@ -420,7 +429,6 @@
                     `).join('');
                 }
 
-                // Upcoming Departures Panel
                 const schedulesContainer = document.getElementById("upcomingDeparturesList");
                 if (schedules.length === 0) {
                     schedulesContainer.innerHTML = '<p style="color: #64748b;">No upcoming trips scheduled.</p>';
@@ -433,7 +441,6 @@
                     `).join('');
                 }
 
-                // Charts
                 const routeMap = {};
                 routes.forEach(r => {
                     const label = r.route_code ? `${r.route_code} (${r.origin} - ${r.destination})` : `${r.origin} - ${r.destination}`;
