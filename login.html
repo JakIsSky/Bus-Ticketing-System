@@ -83,12 +83,7 @@
                     <div class="form-group">
                         <label for="suPassword">Password</label>
                         <input type="password" id="suPassword" placeholder="Create a password" required autocomplete="new-password">
-                        <ul class="pw-rules" id="pwRules">
-                            <li data-rule="len">At least 8 characters</li>
-                            <li data-rule="upper">An uppercase letter</li>
-                            <li data-rule="lower">A lowercase letter</li>
-                            <li data-rule="num">A number</li>
-                        </ul>
+                        <p class="pw-hint" id="pwHint">Use at least 8 characters, including an uppercase letter, a lowercase letter, and a number.</p>
                     </div>
 
                     <div class="form-group">
@@ -190,9 +185,8 @@
                 lower: /[a-z]/.test(pw),
                 num: /[0-9]/.test(pw)
             };
-            document.querySelectorAll('#pwRules li').forEach(li => {
-                li.classList.toggle('ok', checks[li.dataset.rule]);
-            });
+            // Hide the hint once every rule is met; otherwise show the full sentence
+            $('pwHint').style.display = Object.values(checks).every(Boolean) ? 'none' : 'block';
         });
 
         // ---- Create account ----

@@ -105,24 +105,10 @@ body {
     color: #075985;
 }
 
-.pw-rules {
-    list-style: none;
+.pw-hint {
     margin: 6px 0 0;
-    padding: 0;
     font-size: 12px;
     color: #64748b;
-}
-
-.pw-rules li::before {
-    content: "\25CB  ";
-}
-
-.pw-rules li.ok {
-    color: #16a34a;
-}
-
-.pw-rules li.ok::before {
-    content: "\2714  ";
 }
 
 .hidden-form {
