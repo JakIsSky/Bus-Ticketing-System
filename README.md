@@ -71,15 +71,6 @@ The `users` table holds the login accounts (`username`, `password`, `role`, `sta
 4. **Deploy to Vercel** (import the project or drag the folder in). No build step is needed.
 5. Open your Vercel link. You will be sent to the login page first.
 
-Every page must include these scripts in the `<head>`, in this order:
-
-```html
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase.js"></script>
-<script src="supabase-db.js"></script>
-<script src="auth.js"></script>
-```
-
 ## Authentication
 
 - Username and password login (no email). Accounts live in the `users` table.
