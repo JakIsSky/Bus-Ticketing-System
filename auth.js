@@ -111,6 +111,7 @@
     // Account activation / deactivation check. Returns an error message or null.
     function profileProblem(profile) {
         if (!profile) return 'Account not found.';
+        if (profile.status === 'Pending') return 'Your account is waiting for administrator approval.';
         if (profile.status !== 'Active') return 'Your account is inactive. Please contact an administrator.';
         if (!ROLE_PAGES[profile.role]) return 'Your account has no valid role.';
         return null;
@@ -173,7 +174,7 @@
             });
             if (error) throw error;
             if (data !== 'OK') return { ok: false, message: data };
-            return { ok: true, message: 'Account created. You can now sign in.' };
+            return { ok: true, pending: true, message: 'Account created. An administrator must approve it before you can sign in.' };
         } catch (err) {
             console.error('Signup error:', err);
             return { ok: false, message: 'Unable to create the account right now. Did you run mock_auth.sql in Supabase?' };
@@ -238,7 +239,7 @@
         const problem = profileProblem(profile);
         if (problem) {
             clearLocal();
-            redirectToLogin(profile && profile.status !== 'Active' ? 'inactive' : 'denied');
+            redirectToLogin(profile && profile.status === 'Pending' ? 'pending' : (profile && profile.status !== 'Active' ? 'inactive' : 'denied'));
             return null;
         }
 

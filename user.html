@@ -63,6 +63,10 @@
                     <h2 id="adminUsers">0</h2>
                 </div>
                 <div class="summary-card">
+                    <p>Pending Approval</p>
+                    <h2 id="pendingUsers">0</h2>
+                </div>
+                <div class="summary-card">
                     <p>Inactive Accounts</p>
                     <h2 id="inactiveUsers">0</h2>
                 </div>
@@ -70,16 +74,20 @@
 
             <div class="table-container">
                 <div class="table-toolbar">
-                    <input type="search" id="searchInput" placeholder="Search username or role..." oninput="renderUsers()">
+                    <input type="search" id="searchInput" placeholder="Search name, username or role..." oninput="renderUsers()">
                     <select id="roleFilter" onchange="renderUsers()">
                         <option value="">All Roles</option>
-                        <option value="Admin">Admin</option>
-                        <option value="Staff">Staff</option>
+                        <option value="Admin">Administrator</option>
+                        <option value="Transportation Manager">Transportation Manager</option>
+                        <option value="Booking Staff">Booking Staff</option>
                         <option value="Cashier">Cashier</option>
+                        <option value="Dispatcher">Dispatcher</option>
+                        <option value="Management">Management</option>
                     </select>
                     <select id="statusFilter" onchange="renderUsers()">
                         <option value="">All Status</option>
                         <option value="Active">Active</option>
+                        <option value="Pending">Pending</option>
                         <option value="Inactive">Inactive</option>
                     </select>
                 </div>
@@ -89,6 +97,7 @@
                         <thead>
                             <tr>
                                 <th>User ID</th>
+                                <th>Full Name</th>
                                 <th>Username</th>
                                 <th>System Role</th>
                                 <th>Account Status</th>
@@ -117,22 +126,31 @@
 
                 <div class="form-grid">
                     <div class="form-group full-width">
+                        <label for="fullName">Full Name</label>
+                        <input type="text" id="fullName" placeholder="e.g. Juan Dela Cruz" maxlength="100">
+                    </div>
+
+                    <div class="form-group full-width">
                         <label for="username">Username</label>
-                        <input type="text" id="username" placeholder="e.g. admin_user" required>
+                        <input type="text" id="username" placeholder="3–30 letters, numbers, . or _" maxlength="30" required>
                     </div>
 
                     <div class="form-group full-width">
                         <label for="password">Password</label>
-                        <input type="password" id="password" placeholder="Enter password (min. 6 chars)" required>
+                        <input type="password" id="password" placeholder="Create a password" autocomplete="new-password" required>
+                        <p class="pw-hint" id="pwHint">Use at least 8 characters, including an uppercase letter, a lowercase letter, and a number.</p>
                     </div>
 
                     <div class="form-group full-width">
                         <label for="role">System Role</label>
                         <select id="role" required>
                             <option value="">Select Role</option>
-                            <option value="Admin">Admin</option>
-                            <option value="Staff">Staff</option>
+                            <option value="Admin">Administrator</option>
+                            <option value="Transportation Manager">Transportation Manager</option>
+                            <option value="Booking Staff">Booking Staff</option>
                             <option value="Cashier">Cashier</option>
+                            <option value="Dispatcher">Dispatcher</option>
+                            <option value="Management">Management</option>
                         </select>
                     </div>
 
@@ -173,7 +191,8 @@
             const filtered = users.filter(u => {
                 const username = u.username || '';
                 const role = u.role || '';
-                const matchesSearch = username.toLowerCase().includes(search) || role.toLowerCase().includes(search);
+                const fullName = u.full_name || '';
+                const matchesSearch = [username, role, fullName].some(v => v.toLowerCase().includes(search));
                 const matchesRole = roleFilter === "" || u.role === roleFilter;
                 const matchesStatus = statusFilter === "" || u.status === statusFilter;
 
@@ -182,19 +201,25 @@
 
             tbody.innerHTML = "";
             filtered.forEach(u => {
+                const isPending = u.status === 'Pending';
                 const nextStatus = u.status === 'Active' ? 'Inactive' : 'Active';
                 const toggleLabel = u.status === 'Active' ? 'Deactivate' : 'Activate';
+                const statusButtons = isPending
+                    ? `<button class="edit-btn" onclick="approveUser(${u.user_id})">Approve</button>
+                        <button class="delete-btn" onclick="rejectUser(${u.user_id})">Reject</button>`
+                    : `<button class="edit-btn" onclick="toggleUserStatus(${u.user_id}, '${nextStatus}')">${toggleLabel}</button>
+                        <button class="edit-btn" onclick="editUser(${u.user_id})">Edit</button>
+                        <button class="delete-btn" onclick="deleteUser(${u.user_id})">Delete</button>`;
 
                 const row = document.createElement("tr");
                 row.innerHTML = `
                     <td>${u.user_id}</td>
+                    <td>${u.full_name || '—'}</td>
                     <td><strong>${u.username}</strong></td>
-                    <td>${u.role}</td>
+                    <td>${(Auth.ROLE_LABELS && Auth.ROLE_LABELS[u.role]) || u.role}</td>
                     <td><span class="status ${(u.status || '').toLowerCase()}">${u.status}</span></td>
                     <td class="actions">
-                        <button class="edit-btn" onclick="toggleUserStatus(${u.user_id}, '${nextStatus}')">${toggleLabel}</button>
-                        <button class="edit-btn" onclick="editUser(${u.user_id})">Edit</button>
-                        <button class="delete-btn" onclick="deleteUser(${u.user_id})">Delete</button>
+                        ${statusButtons}
                     </td>
                 `;
                 tbody.appendChild(row);
@@ -204,7 +229,26 @@
             document.getElementById("totalUsers").textContent = users.length;
             document.getElementById("activeUsers").textContent = users.filter(u => u.status === "Active").length;
             document.getElementById("adminUsers").textContent = users.filter(u => u.role === "Admin").length;
+            document.getElementById("pendingUsers").textContent = users.filter(u => u.status === "Pending").length;
             document.getElementById("inactiveUsers").textContent = users.filter(u => u.status === "Inactive").length;
+        }
+
+        async function approveUser(id) {
+            const u = users.find(item => item.user_id === id);
+            if (!u) return;
+            if (confirm("Approve account \"" + u.username + "\" (" + u.role + ")?")) {
+                await DB.update('users', 'user_id', id, { status: 'Active' });
+                fetchUsers();
+            }
+        }
+
+        async function rejectUser(id) {
+            const u = users.find(item => item.user_id === id);
+            if (!u) return;
+            if (confirm("Reject and delete the pending account \"" + u.username + "\"?")) {
+                await DB.delete('users', 'user_id', id);
+                fetchUsers();
+            }
         }
 
         async function toggleUserStatus(id, newStatus) {
@@ -217,6 +261,7 @@
             document.getElementById("userId").value = "";
             document.getElementById("formTitle").textContent = "Add New User";
             document.getElementById("password").required = true;
+            document.getElementById("pwHint").style.display = "block";
             document.getElementById("userModal").style.display = "flex";
         }
 
@@ -224,34 +269,64 @@
             document.getElementById("userModal").style.display = "none";
         }
 
+        // Live password hint: hidden once every rule is met
+        document.getElementById("password").addEventListener("input", function () {
+            const ok = Auth.passwordProblems(this.value).length === 0;
+            document.getElementById("pwHint").style.display = ok ? "none" : "block";
+        });
+
         document.getElementById("userForm").addEventListener("submit", async function(e) {
             e.preventDefault();
 
             const id = document.getElementById("userId").value;
-            const rawPassword = document.getElementById("password").value.trim();
+            const fullName = document.getElementById("fullName").value.trim();
+            const username = document.getElementById("username").value.trim();
+            const rawPassword = document.getElementById("password").value;
+            const role = document.getElementById("role").value;
+            const status = document.getElementById("status").value;
+
+            if (!/^[A-Za-z0-9_.]{3,30}$/.test(username)) {
+                alert("Username must be 3–30 characters: letters, numbers, dot or underscore.");
+                return;
+            }
 
             if (!id || rawPassword.length > 0) {
-                const check = Auth.validatePassword(rawPassword);
-                if (!check.valid) {
-                    alert(check.message);
+                const problems = Auth.passwordProblems(rawPassword);
+                if (problems.length) {
+                    alert("Password needs " + problems.join(", ") + ".");
                     return;
                 }
             }
 
-            const payload = {
-                username: document.getElementById("username").value.trim(),
-                role: document.getElementById("role").value,
-                status: document.getElementById("status").value
-            };
-
-            if (rawPassword) {
-                payload.password = rawPassword;
-            }
-
             if (id) {
-                await DB.update('users', 'user_id', id, payload);
+                // EDIT existing user
+                const payload = { full_name: fullName, username: username, role: role, status: status };
+                if (rawPassword) payload.password = rawPassword;
+                const result = await DB.update('users', 'user_id', id, payload);
+                if (!result) return;
             } else {
-                await DB.create('users', payload);
+                // CREATE new user (same function the Create Account page uses)
+                if (users.some(u => (u.username || '').toLowerCase() === username.toLowerCase())) {
+                    alert("That username is already taken.");
+                    return;
+                }
+                try {
+                    const { data, error } = await Auth.client().rpc('mock_signup', {
+                        p_username: username,
+                        p_full_name: fullName,
+                        p_password: rawPassword,
+                        p_role: role
+                    });
+                    if (error) throw error;
+                    if (data !== 'OK') { alert(data); return; }
+                } catch (err) {
+                    console.error(err);
+                    alert("Unable to create the user: " + (err.message || err));
+                    return;
+                }
+                // New accounts start as Pending; an administrator creating one sets its status directly
+                await DB.update('users', 'username', username, { status: status });
+                alert("User created successfully.");
             }
 
             closeUserForm();
@@ -263,9 +338,11 @@
             if (!u) return;
 
             document.getElementById("userId").value = u.user_id;
+            document.getElementById("fullName").value = u.full_name || "";
             document.getElementById("username").value = u.username;
             document.getElementById("password").value = "";
             document.getElementById("password").required = false;
+            document.getElementById("pwHint").style.display = "none";
             document.getElementById("role").value = u.role;
             document.getElementById("status").value = u.status;
 
