@@ -45,11 +45,9 @@ A web-based system for managing buses, routes, schedules, passengers, bookings, 
 ├── user.html
 ├── report.html
 ├── style.css            # login page + shared styles
-├── style_2.css          # dashboard styles
 ├── supabase.js          # Supabase client / connection
 ├── supabase-db.js       # DB helper (DB.getAll, etc.)
 ├── auth.js              # login, logout, sessions, role-based access
-└── mock_auth.sql        # database setup for login + test accounts
 ```
 
 ## Database
