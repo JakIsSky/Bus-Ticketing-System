@@ -16,7 +16,7 @@
             <div class="login-header">
                 <div class="logo-icon">🚌</div>
                 <h1>Bus Ticketing System</h1>
-                <p id="loginSubtitle">Sign in with an active staff or admin account</p>
+                <p id="loginSubtitle">Test login – sign in with a username and password</p>
             </div>
 
             <div class="auth-tabs">
@@ -31,8 +31,8 @@
             <form id="loginForm">
                 <div class="form-grid" style="grid-template-columns: 1fr;">
                     <div class="form-group">
-                        <label for="username">Username or Email</label>
-                        <input type="text" id="username" placeholder="Enter username or email" required autocomplete="username">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" placeholder="Enter username" required autocomplete="username">
                     </div>
 
                     <div class="form-group">
@@ -43,6 +43,17 @@
 
                 <button type="submit" class="save-btn submit-full" id="loginBtn">Sign In</button>
             </form>
+
+            <div class="demo-accounts" id="demoAccounts">
+                <p>Test accounts (click to fill)</p>
+                <button type="button" data-u="admin" data-p="Admin@123">Administrator</button>
+                <button type="button" data-u="manager" data-p="Manager@123">Transportation Manager</button>
+                <button type="button" data-u="booking" data-p="Booking@123">Booking Staff</button>
+                <button type="button" data-u="cashier" data-p="Cashier@123">Cashier</button>
+                <button type="button" data-u="dispatcher" data-p="Dispatcher@123">Dispatcher</button>
+                <button type="button" data-u="management" data-p="Management@123">Management</button>
+                <button type="button" data-u="inactive_test" data-p="Inactive@123">Inactive (should be blocked)</button>
+            </div>
 
             <!-- CREATE ACCOUNT -->
             <form id="signupForm" class="hidden-form">
@@ -58,8 +69,15 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="suEmail">Email</label>
-                        <input type="email" id="suEmail" placeholder="name@example.com" required maxlength="100" autocomplete="email">
+                        <label for="suRole">Role (for access-control testing)</label>
+                        <select id="suRole" required>
+                            <option value="Booking Staff">Booking Staff</option>
+                            <option value="Cashier">Cashier</option>
+                            <option value="Dispatcher">Dispatcher</option>
+                            <option value="Transportation Manager">Transportation Manager</option>
+                            <option value="Management">Management</option>
+                            <option value="Admin">Administrator</option>
+                        </select>
                     </div>
 
                     <div class="form-group">
@@ -112,8 +130,8 @@
             $('loginForm').classList.toggle('hidden-form', !isLogin);
             $('signupForm').classList.toggle('hidden-form', isLogin);
             $('loginSubtitle').textContent = isLogin
-                ? 'Sign in with an active staff or admin account'
-                : 'Create a new account to request access';
+                ? 'Test login – sign in with a username and password'
+                : 'Create a test account and pick a role';
             clearMessages();
         }
         $('tabLogin').addEventListener('click', () => switchTab('login'));
@@ -123,8 +141,8 @@
         document.addEventListener('DOMContentLoaded', async () => {
             const reasons = {
                 timeout:   ['You were signed out after 30 minutes of inactivity. Please sign in again.', 'info'],
-                inactive:  ['Your account is inactive or waiting for administrator approval.', 'info'],
-                denied:    ['Your account could not be verified. Please contact an administrator.', 'info'],
+                inactive:  ['Your account is inactive. Please contact an administrator.', 'info'],
+                denied:    ['Your account could not be verified. Please sign in again.', 'info'],
                 loggedout: ['You have been signed out.', 'success']
             };
             const reason = new URLSearchParams(location.search).get('reason');
@@ -133,6 +151,14 @@
             if (await Auth.hasActiveSession()) {
                 window.location.replace('index.html');
             }
+        });
+
+        // ---- Test account shortcuts ----
+        document.querySelectorAll('#demoAccounts button').forEach(b => {
+            b.addEventListener('click', () => {
+                $('username').value = b.dataset.u;
+                $('password').value = b.dataset.p;
+            });
         });
 
         // ---- Sign in ----
@@ -180,7 +206,7 @@
             const result = await Auth.signup({
                 fullName: $('suFullName').value,
                 username: $('suUsername').value,
-                email: $('suEmail').value,
+                role: $('suRole').value,
                 password: $('suPassword').value,
                 confirm: $('suConfirm').value
             });

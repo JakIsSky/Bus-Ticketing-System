@@ -1,24 +1,7 @@
-/* =====================================================================
-   auth.js – Authentication, session management & role-based access
-   Stage 12 – Security (Lab 31 + Lab 32)
-
-   Include on EVERY page, AFTER supabase.js:
-     <script src="supabase.js"></script>
-     <script src="supabase-db.js"></script>
-     <script src="auth.js"></script>
-
-   On every page except login.html this file automatically:
-     - hides the page until the visitor is verified
-     - redirects to login.html if not signed in / inactive / timed out
-     - blocks pages the user's role is not allowed to open
-     - removes links/buttons the role may not use
-     - adds the user name, role and a Logout button to the sidebar
-   ===================================================================== */
 (function (global) {
     'use strict';
 
     // Only used if supabase.js does not already expose a client.
-    // (Paste the same URL + anon key you use in supabase.js.)
     const FALLBACK_SUPABASE_URL = '';
     const FALLBACK_SUPABASE_ANON_KEY = '';
 
@@ -34,8 +17,7 @@
         'payment.html', 'ticket.html', 'user.html', 'report.html'
     ];
 
-    // Lab 32 – which pages each role may open.
-    // (Database writes are enforced separately by the RLS policies in security.sql.)
+    // Lab 32 – pages each role may open
     const BOOKING_PAGES = ['index.html', 'passenger_management.html', 'schedule_management.html', 'booking.html'];
     const ROLE_PAGES = {
         'Admin': ['*'],
@@ -57,19 +39,16 @@
         'Management': 'Management'
     };
 
-    const GENERIC_LOGIN_ERROR = 'Invalid username or password.';
-
     /* ------------------------------ client ------------------------------ */
     let clientInstance = null;
 
     function findExistingClient() {
-        // Looks for a client created by your supabase.js, whatever it named it.
-        try { if (typeof supabaseClient !== 'undefined' && supabaseClient && supabaseClient.auth) return supabaseClient; } catch (e) {}
-        try { if (typeof sbClient !== 'undefined' && sbClient && sbClient.auth) return sbClient; } catch (e) {}
-        try { if (typeof _supabase !== 'undefined' && _supabase && _supabase.auth) return _supabase; } catch (e) {}
-        try { if (typeof db !== 'undefined' && db && db.auth) return db; } catch (e) {}
-        try { if (typeof sb !== 'undefined' && sb && sb.auth) return sb; } catch (e) {}
-        try { if (typeof supabase !== 'undefined' && supabase && supabase.auth) return supabase; } catch (e) {}
+        try { if (typeof supabaseClient !== 'undefined' && supabaseClient && supabaseClient.from) return supabaseClient; } catch (e) {}
+        try { if (typeof sbClient !== 'undefined' && sbClient && sbClient.from) return sbClient; } catch (e) {}
+        try { if (typeof _supabase !== 'undefined' && _supabase && _supabase.from) return _supabase; } catch (e) {}
+        try { if (typeof db !== 'undefined' && db && db.from) return db; } catch (e) {}
+        try { if (typeof sb !== 'undefined' && sb && sb.from) return sb; } catch (e) {}
+        try { if (typeof supabase !== 'undefined' && supabase && supabase.from) return supabase; } catch (e) {}
         return null;
     }
 
@@ -89,29 +68,24 @@
     function currentPage() {
         let file = decodeURIComponent(location.pathname.split('/').pop() || '');
         if (!file) return HOME_PAGE;
-        if (!file.includes('.')) file += '.html'; // Vercel clean URLs (/login -> login.html)
+        if (!file.includes('.')) file += '.html'; // Vercel clean URLs
         return file.toLowerCase();
     }
 
     function canAccess(role, page) {
         const allowed = ROLE_PAGES[role];
         if (!allowed) return false;
-        if (allowed.includes('*')) return true;
-        return allowed.includes(page);
+        return allowed.includes('*') || allowed.includes(page);
     }
 
-    function cacheProfile(p) {
-        try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch (e) {}
-    }
+    function cacheProfile(p) { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch (e) {} }
     function clearLocal() {
         try { localStorage.removeItem(PROFILE_KEY); localStorage.removeItem(ACTIVITY_KEY); } catch (e) {}
     }
     function readCachedProfile() {
         try { return JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null'); } catch (e) { return null; }
     }
-    function touchActivity() {
-        try { localStorage.setItem(ACTIVITY_KEY, String(Date.now())); } catch (e) {}
-    }
+    function touchActivity() { try { localStorage.setItem(ACTIVITY_KEY, String(Date.now())); } catch (e) {} }
     function idleExpired() {
         try {
             const t = Number(localStorage.getItem(ACTIVITY_KEY) || 0);
@@ -123,11 +97,12 @@
         location.replace(LOGIN_PAGE + (reason ? '?reason=' + encodeURIComponent(reason) : ''));
     }
 
-    async function fetchProfile(authId) {
+    // Fresh copy of the profile from the database (so deactivation takes effect)
+    async function fetchProfile(userId) {
         const { data, error } = await client()
             .from('users')
-            .select('user_id, username, email, full_name, role, status')
-            .eq('auth_id', authId)
+            .select('user_id, username, full_name, role, status')
+            .eq('user_id', userId)
             .maybeSingle();
         if (error) throw error;
         return data;
@@ -135,9 +110,9 @@
 
     // Account activation / deactivation check. Returns an error message or null.
     function profileProblem(profile) {
-        if (!profile) return 'No account profile was found. Please contact an administrator.';
-        if (profile.status !== 'Active') return 'Your account is inactive or waiting for administrator approval.';
-        if (!ROLE_PAGES[profile.role]) return 'Your account has no valid role. Please contact an administrator.';
+        if (!profile) return 'Account not found.';
+        if (profile.status !== 'Active') return 'Your account is inactive. Please contact an administrator.';
+        if (!ROLE_PAGES[profile.role]) return 'Your account has no valid role.';
         return null;
     }
 
@@ -153,133 +128,75 @@
     }
 
     /* ------------------------------- login ------------------------------ */
-    // identifier = username OR email
-    async function login(identifier, password) {
-        identifier = (identifier || '').trim();
-        if (!identifier || !password) {
+    async function login(username, password) {
+        username = (username || '').trim();
+        if (!username || !password) {
             return { ok: false, message: 'Please enter your username and password.' };
         }
         try {
-            let email = identifier;
-            if (!identifier.includes('@')) {
-                const { data, error } = await client().rpc('get_login_email', { p_username: identifier });
-                if (error) throw error;
-                if (!data) return { ok: false, message: GENERIC_LOGIN_ERROR };
-                email = data;
-            }
+            const { data, error } = await client().rpc('mock_login', { p_username: username, p_password: password });
+            if (error) throw error;
+            const profile = Array.isArray(data) ? data[0] : data;
+            if (!profile) return { ok: false, message: 'Invalid username or password.' };
 
-            const { data, error } = await client().auth.signInWithPassword({ email, password });
-            if (error) {
-                if (/confirm/i.test(error.message)) {
-                    return { ok: false, message: 'Please confirm your email address first, then sign in.' };
-                }
-                return { ok: false, message: GENERIC_LOGIN_ERROR };
-            }
-
-            const profile = await fetchProfile(data.user.id);
             const problem = profileProblem(profile);
-            if (problem) {
-                await client().auth.signOut();
-                clearLocal();
-                return { ok: false, message: problem };
-            }
+            if (problem) return { ok: false, message: problem };
 
             cacheProfile(profile);
             touchActivity();
-            client().rpc('touch_last_login').then(function () {}, function () {});
             return { ok: true, profile: profile };
         } catch (err) {
             console.error('Login error:', err);
-            return { ok: false, message: 'Unable to sign in right now. Check your connection and try again.' };
+            return { ok: false, message: 'Unable to sign in right now. Did you run mock_auth.sql in Supabase?' };
         }
     }
 
     /* ------------------------------- sign up ---------------------------- */
     async function signup(form) {
-        const fullName = (form.fullName || '').trim();
         const username = (form.username || '').trim();
-        const email = (form.email || '').trim();
         const password = form.password || '';
 
         if (!/^[A-Za-z0-9_.]{3,30}$/.test(username)) {
             return { ok: false, message: 'Username must be 3–30 characters: letters, numbers, dot or underscore.' };
         }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            return { ok: false, message: 'Please enter a valid email address.' };
-        }
         const problems = passwordProblems(password);
-        if (problems.length) {
-            return { ok: false, message: 'Password needs ' + problems.join(', ') + '.' };
-        }
-        if (password !== form.confirm) {
-            return { ok: false, message: 'Passwords do not match.' };
-        }
+        if (problems.length) return { ok: false, message: 'Password needs ' + problems.join(', ') + '.' };
+        if (password !== form.confirm) return { ok: false, message: 'Passwords do not match.' };
+        if (!ROLE_PAGES[form.role] || form.role === 'Staff') return { ok: false, message: 'Please choose a role.' };
 
         try {
-            const avail = await client().rpc('username_available', { p_username: username });
-            if (avail.error) throw avail.error;
-            if (!avail.data) return { ok: false, message: 'That username is already taken.' };
-
-            const { data, error } = await client().auth.signUp({
-                email: email,
-                password: password,
-                options: { data: { username: username.toLowerCase(), full_name: fullName } }
+            const { data, error } = await client().rpc('mock_signup', {
+                p_username: username,
+                p_full_name: (form.fullName || '').trim(),
+                p_password: password,
+                p_role: form.role
             });
-            if (error) return { ok: false, message: error.message };
-
-            // Supabase returns a user with no identities when the email already exists
-            if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
-                return { ok: false, message: 'An account with that email already exists.' };
-            }
-
-            if (!data.session) {
-                return {
-                    ok: true, pending: true,
-                    message: 'Account created. Please confirm your email address, then sign in. An administrator may also need to activate it.'
-                };
-            }
-
-            const profile = await fetchProfile(data.user.id);
-            const problem = profileProblem(profile);
-            if (problem) {
-                await client().auth.signOut();
-                clearLocal();
-                return {
-                    ok: true, pending: true,
-                    message: 'Account created. An administrator must activate it before you can sign in.'
-                };
-            }
-
-            cacheProfile(profile);
-            touchActivity();
-            return { ok: true, profile: profile, message: 'Account created.' };
+            if (error) throw error;
+            if (data !== 'OK') return { ok: false, message: data };
+            return { ok: true, message: 'Account created. You can now sign in.' };
         } catch (err) {
             console.error('Signup error:', err);
-            return { ok: false, message: 'Unable to create the account right now. Please try again.' };
+            return { ok: false, message: 'Unable to create the account right now. Did you run mock_auth.sql in Supabase?' };
         }
     }
 
     /* ------------------------------- logout ----------------------------- */
-    async function logout(reason) {
-        try { await client().auth.signOut(); } catch (e) { console.error(e); }
+    function logout(reason) {
         clearLocal();
         redirectToLogin(reason || 'loggedout');
     }
 
     /* ----------------------------- session check ------------------------ */
-    // Used by login.html to skip the form when already signed in.
     async function hasActiveSession() {
+        const cached = readCachedProfile();
+        if (!cached || idleExpired()) return false;
         try {
-            const { data } = await client().auth.getSession();
-            if (!data || !data.session || idleExpired()) return false;
-            const profile = await fetchProfile(data.session.user.id);
-            return !profileProblem(profile);
+            return !profileProblem(await fetchProfile(cached.user_id));
         } catch (e) {
             return false;
         }
     }
 
-    // Synchronous, cached copy of the profile (UI convenience only – never trusted for security).
     function getSession() { return readCachedProfile(); }
 
     /* ------------------------------ page guard -------------------------- */
@@ -310,22 +227,16 @@
 
     async function runGuard() {
         const page = currentPage();
-        let session = null;
-        try {
-            const res = await client().auth.getSession();
-            session = res.data && res.data.session;
-        } catch (e) { session = null; }
+        const cached = readCachedProfile();
 
-        if (!session) { clearLocal(); redirectToLogin(); return null; }
-
-        if (idleExpired()) { await logout('timeout'); return null; }
+        if (!cached) { redirectToLogin(); return null; }
+        if (idleExpired()) { logout('timeout'); return null; }
 
         let profile = null;
-        try { profile = await fetchProfile(session.user.id); } catch (e) { console.error(e); }
+        try { profile = await fetchProfile(cached.user_id); } catch (e) { console.error(e); }
 
         const problem = profileProblem(profile);
         if (problem) {
-            try { await client().auth.signOut(); } catch (e) {}
             clearLocal();
             redirectToLogin(profile && profile.status !== 'Active' ? 'inactive' : 'denied');
             return null;
@@ -344,7 +255,7 @@
         startIdleWatch();
         applyUi(profile);
         reveal();
-        return { user: session.user, profile: profile };
+        return { user: profile, profile: profile };
     }
 
     function startIdleWatch() {
@@ -357,9 +268,9 @@
         });
         setInterval(function () { if (idleExpired()) logout('timeout'); }, 30000);
 
-        // Signed out in another tab -> leave this one too
-        client().auth.onAuthStateChange(function (event) {
-            if (event === 'SIGNED_OUT') { clearLocal(); redirectToLogin(); }
+        // Logged out in another tab -> leave this one too
+        window.addEventListener('storage', function (e) {
+            if (e.key === PROFILE_KEY && !e.newValue) redirectToLogin('loggedout');
         });
     }
 
@@ -367,7 +278,6 @@
     function applyUi(profile) {
         const role = profile.role;
 
-        // Remove links the role may not use (sidebar + quick actions + anywhere else)
         document.querySelectorAll('a[href]').forEach(function (a) {
             const href = a.getAttribute('href') || '';
             if (!href || /^(https?:|#|mailto:|tel:|javascript:)/i.test(href)) return;
