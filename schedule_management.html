@@ -1,360 +1,567 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Bus Schedules | Bus Ticketing System</title>
-        <link rel="stylesheet" href="style.css">
-        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-        <script src="supabase.js"></script>
-        <script src="supabase-db.js"></script>
-        <script src="auth.js"></script>
-    </head>
-    <body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus Schedules & Availability | Bus Ticketing System</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
+    <script src="supabase-db.js"></script>
+    <script src="auth.js"></script>
+</head>
+<body>
 
-        <aside class="sidebar">
-            <div class="logo">
-                <span class="logo-icon">🚌</span>
-                <h2>Bus Ticketing</h2>
+    <aside class="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🚌</span>
+            <h2>Bus Ticketing</h2>
+        </div>
+
+        <nav>
+            <a href="index.html">▦ Dashboard</a>
+            <a href="bus_management.html">🚌 Buses</a>
+            <a href="route_management.html">⌖ Routes</a>
+            <a href="schedule_management.html" class="active">▦ Schedules</a>
+            <a href="passenger_management.html">♟ Passengers</a>
+            <a href="booking.html">▤ Bookings</a>
+            <a href="payment.html">▣ Payments</a>
+            <a href="ticket.html">▤ Tickets</a>
+            <a href="user.html">⚙ Users</a>
+            <a href="report.html">▥ Reports</a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+
+        <header class="topbar">
+            <div>
+                <h2>Bus Schedules & Availability</h2>
+                <p>Assign eligible buses and active routes with strict validation rules.</p>
+            </div>
+        </header>
+
+        <section class="content">
+
+            <div class="page-heading">
+                <div>
+                    <h2>Schedule List</h2>
+                    <p>Blocks double-booking, maintenance/inactive buses, inactive routes, invalid times, and past schedules.</p>
+                </div>
+                <button class="add-btn" onclick="openScheduleForm()">
+                    + Add New Schedule
+                </button>
+            </div>
+            
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <p>Total Schedules</p>
+                    <h2 id="totalSchedules">0</h2>
+                </div>
+                <div class="summary-card">
+                    <p>Scheduled Trips</p>
+                    <h2 id="scheduledTrips">0</h2>
+                </div>
+                <div class="summary-card">
+                    <p>Ongoing Trips</p>
+                    <h2 id="ongoingTrips">0</h2>
+                </div>
+                <div class="summary-card">
+                    <p>Completed Trips</p>
+                    <h2 id="completedTrips">0</h2>
+                </div>
             </div>
 
-            <nav>
-                <a href="index.html">▦ Dashboard</a>
-                <a href="bus_management.html">🚌 Buses</a>
-                <a href="route_management.html">⌖ Routes</a>
-                <a href="schedule_management.html" class="active">▦ Schedules</a>
-                <a href="passenger_management.html">♟ Passengers</a>
-                <a href="booking.html">▤ Bookings</a>
-                <a href="payment.html">▣ Payments</a>
-                <a href="ticket.html">▤ Tickets</a>
-                <a href="user.html">⚙ Users</a>
-                <a href="report.html">▥ Reports</a>
-            </nav>
-        </aside>
-
-        <main class="main-content">
-
-            <header class="topbar">
-                <div>
-                    <h2>Bus Schedules</h2>
-                    <p>Manage and view all bus trips directly via Supabase.</p>
-                </div>
-            </header>
-
-            <section class="content">
-
-                <div class="page-heading">
-                    <div>
-                        <h2>Schedule List</h2>
-                        <p>View and manage bus departure schedules.</p>
-                    </div>
-                    <button class="add-btn" onclick="openScheduleForm()">
-                        + Add New Schedule
-                    </button>
-                </div>
-                
-                <div class="summary-cards">
-                    <div class="summary-card">
-                        <p>Total Schedules</p>
-                        <h2 id="totalSchedules">0</h2>
-                    </div>
-
-                    <div class="summary-card">
-                        <p>Scheduled Trips</p>
-                        <h2 id="scheduledTrips">0</h2>
-                    </div>
-
-                    <div class="summary-card">
-                        <p>Ongoing Trips</p>
-                        <h2 id="ongoingTrips">0</h2>
-                    </div>
-
-                    <div class="summary-card">
-                        <p>Completed Trips</p>
-                        <h2 id="completedTrips">0</h2>
-                    </div>
+            <div class="table-container">
+                <div class="table-toolbar">
+                    <input type="search" id="searchInput" placeholder="Search schedule ID, bus, or route..." oninput="renderSchedules()">
+                    <input type="date" id="dateFilter" aria-label="Filter by departure date" onchange="renderSchedules()">
+                    <select id="statusFilter" aria-label="Filter by schedule status" onchange="renderSchedules()">
+                        <option value="">All Status</option>
+                        <option value="Scheduled">Scheduled</option>
+                        <option value="Ongoing">Ongoing</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
                 </div>
 
-                <div class="table-container">
-                    <div class="table-toolbar">
-                        <input type="search" id="searchInput" placeholder="Search schedule ID, bus, or route..." oninput="renderSchedules()">
-                        <input type="date" id="dateFilter" aria-label="Filter by departure date" onchange="renderSchedules()">
-                        <select id="statusFilter" aria-label="Filter by schedule status" onchange="renderSchedules()">
-                            <option value="">All Status</option>
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Schedule ID</th>
+                                <th>Bus Number</th>
+                                <th>Route</th>
+                                <th>Departure Date</th>
+                                <th>Departure Time</th>
+                                <th>Arrival Time</th>
+                                <th>Capacity / Available</th>
+                                <th>Fare</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scheduleTableBody"></tbody>
+                    </table>
+                </div>
+
+                <p id="emptyMessage" class="empty-message" style="display: none;">
+                    No schedules found. Click "+ Add New Schedule" to get started.
+                </p>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Add / Edit Schedule Modal -->
+    <div class="modal" id="scheduleModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-heading">
+                <h2 id="scheduleFormTitle">Add New Schedule</h2>
+                <button type="button" class="close-btn" onclick="closeScheduleForm()">×</button>
+            </div>
+
+            <!-- Live Validation Error Banner -->
+            <div id="availabilityBanner" style="display:none; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 13px; line-height: 1.5;"></div>
+
+            <form id="scheduleForm">
+                <input type="hidden" id="scheduleId">
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="busSelect">Select Bus</label>
+                        <select id="busSelect" onchange="onBusChange()" required>
+                            <option value="">Select Bus</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="routeSelect">Select Route</label>
+                        <select id="routeSelect" onchange="runEligibilityCheck()" required>
+                            <option value="">Select Route</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="departureDate">Departure Date</label>
+                        <input type="date" id="departureDate" onchange="runEligibilityCheck()" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="availableSeats">Available Seats (Max: <span id="maxCapacityLabel">--</span>)</label>
+                        <input type="number" id="availableSeats" min="0" oninput="runEligibilityCheck()" placeholder="e.g. 45" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="departureTime">Departure Time</label>
+                        <input type="time" id="departureTime" onchange="runEligibilityCheck()" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="arrivalTime">Arrival Time</label>
+                        <input type="time" id="arrivalTime" onchange="runEligibilityCheck()" required>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="scheduleStatus">Schedule Status</label>
+                        <select id="scheduleStatus" onchange="runEligibilityCheck()" required>
                             <option value="Scheduled">Scheduled</option>
                             <option value="Ongoing">Ongoing</option>
                             <option value="Completed">Completed</option>
                             <option value="Cancelled">Cancelled</option>
                         </select>
                     </div>
-
-                    <div class="table-scroll">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Schedule ID</th>
-                                    <th>Bus Number</th>
-                                    <th>Route</th>
-                                    <th>Departure Date</th>
-                                    <th>Departure Time</th>
-                                    <th>Arrival Time</th>
-                                    <th>Available Seats</th>
-                                    <th>Fare</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-
-                            <tbody id="scheduleTableBody">
-                                <!-- Populated dynamically via JS -->
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <p id="emptyMessage" class="empty-message" style="display: none;">
-                        No schedules found. Click "+ Add New Schedule" to get started.
-                    </p>
                 </div>
 
-            </section>
-
-        </main>
-
-        <!-- Add / Edit Schedule Modal -->
-        <div class="modal" id="scheduleModal" style="display: none;">
-            <div class="modal-content">
-                <div class="modal-heading">
-                    <h2 id="scheduleFormTitle">Add New Schedule</h2>
-                    <button type="button" class="close-btn" onclick="closeScheduleForm()">×</button>
+                <div class="form-actions">
+                    <button type="button" class="cancel-btn" onclick="closeScheduleForm()">Cancel</button>
+                    <button type="submit" id="saveScheduleBtn" class="save-btn">Save Schedule</button>
                 </div>
-
-                <form id="scheduleForm">
-                    <input type="hidden" id="scheduleId">
-
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="busSelect">Bus</label>
-                            <select id="busSelect" onchange="onBusSelect()" required>
-                                <option value="">Select Bus</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="routeSelect">Route</label>
-                            <select id="routeSelect" required>
-                                <option value="">Select Route</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="departureDate">Departure Date</label>
-                            <input type="date" id="departureDate" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="availableSeats">Available Seats</label>
-                            <input type="number" id="availableSeats" min="0" placeholder="e.g. 40" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="departureTime">Departure Time</label>
-                            <input type="time" id="departureTime" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="arrivalTime">Arrival Time</label>
-                            <input type="time" id="arrivalTime" required>
-                        </div>
-
-                        <div class="form-group full-width">
-                            <label for="scheduleStatus">Status</label>
-                            <select id="scheduleStatus" required>
-                                <option value="Scheduled">Scheduled</option>
-                                <option value="Ongoing">Ongoing</option>
-                                <option value="Completed">Completed</option>
-                                <option value="Cancelled">Cancelled</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-actions">
-                        <button type="button" class="cancel-btn" onclick="closeScheduleForm()">Cancel</button>
-                        <button type="submit" class="save-btn">Save Schedule</button>
-                    </div>
-                </form>
-            </div>
+            </form>
         </div>
+    </div>
 
-        <script>
-            let schedules = [];
-            let buses = [];
-            let routes = [];
+    <script>
+        let schedules = [];
+        let buses = [];
+        let routes = [];
 
-            async function loadDropdowns() {
-                buses = await DB.getAll('buses');
-                routes = await DB.getAll('routes');
+        function getTodayDateString() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
 
-                const busSelect = document.getElementById('busSelect');
-                busSelect.innerHTML = '<option value="">Select Bus</option>';
-                buses.forEach(bus => {
-                    const option = document.createElement('option');
-                    option.value = bus.bus_id;
-                    option.dataset.capacity = bus.seating_capacity;
-                    option.textContent = `${bus.bus_number} (${bus.bus_type} - ${bus.seating_capacity} seats)`;
-                    busSelect.appendChild(option);
-                });
+        function getCurrentTimeString() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            return `${hours}:${minutes}`;
+        }
 
-                const routeSelect = document.getElementById('routeSelect');
-                routeSelect.innerHTML = '<option value="">Select Route</option>';
-                routes.forEach(route => {
-                    const option = document.createElement('option');
-                    option.value = route.route_id;
-                    option.textContent = `${route.route_code}: ${route.origin} - ${route.destination}`;
-                    routeSelect.appendChild(option);
-                });
-            }
+        function populateBusDropdown(allowedBusId = null) {
+            const busSelect = document.getElementById('busSelect');
+            busSelect.innerHTML = '<option value="">Select Bus</option>';
 
-            // Auto-fill available seats based on selected bus capacity when adding a new schedule
-            function onBusSelect() {
-                const busSelect = document.getElementById('busSelect');
-                const selectedOption = busSelect.options[busSelect.selectedIndex];
-                const isEditing = document.getElementById('scheduleId').value !== "";
-                
-                if (!isEditing && selectedOption && selectedOption.dataset.capacity) {
-                    document.getElementById('availableSeats').value = selectedOption.dataset.capacity;
-                }
-            }
+            buses.forEach(bus => {
+                const option = document.createElement('option');
+                option.value = bus.bus_id;
+                option.dataset.capacity = bus.seating_capacity;
+                option.dataset.status = bus.status;
 
-            async function fetchSchedules() {
-                schedules = await DB.getAll('schedules');
-                await loadDropdowns();
-                renderSchedules();
-            }
+                const isBlockedStatus = ['Maintenance', 'Inactive'].includes(bus.status);
+                const isAvailable = bus.status === 'Available';
+                const isCurrentEditBus = allowedBusId && Number(bus.bus_id) === Number(allowedBusId);
 
-            function renderSchedules() {
-                const tbody = document.getElementById("scheduleTableBody");
-                const search = document.getElementById("searchInput").value.toLowerCase().trim();
-                const statusFilter = document.getElementById("statusFilter").value;
-                const dateFilter = document.getElementById("dateFilter").value;
-
-                const filtered = schedules.filter(sch => {
-                    const bus = buses.find(b => b.bus_id === sch.bus_id);
-                    const route = routes.find(r => r.route_id === sch.route_id);
-                    
-                    const schedId = String(sch.schedule_id || '');
-                    const busNum = bus ? bus.bus_number : '';
-                    const routeText = route ? `${route.route_code} ${route.origin} ${route.destination}` : '';
-
-                    const matchesSearch = [schedId, busNum, routeText].some(val => val.toLowerCase().includes(search));
-                    const matchesStatus = statusFilter === "" || sch.schedule_status === statusFilter;
-                    const matchesDate = !dateFilter || sch.departure_date === dateFilter;
-
-                    return matchesSearch && matchesStatus && matchesDate;
-                });
-
-                tbody.innerHTML = "";
-
-                filtered.forEach(sch => {
-                    const bus = buses.find(b => b.bus_id === sch.bus_id);
-                    const route = routes.find(r => r.route_id === sch.route_id);
-                    const statusVal = sch.schedule_status || 'Scheduled';
-
-                    const row = document.createElement("tr");
-                    row.innerHTML = `
-                        <td><strong>#${sch.schedule_id}</strong></td>
-                        <td>${bus ? bus.bus_number : 'N/A'}</td>
-                        <td>${route ? `${route.origin} - ${route.destination}` : 'N/A'}</td>
-                        <td>${sch.departure_date || 'N/A'}</td>
-                        <td>${sch.departure_time || 'N/A'}</td>
-                        <td>${sch.arrival_time || 'N/A'}</td>
-                        <td>${sch.available_seats !== undefined ? sch.available_seats : 'N/A'}</td>
-                        <td>₱${route ? Number(route.fare).toFixed(2) : '0.00'}</td>
-                        <td><span class="status ${statusVal.toLowerCase()}">${statusVal}</span></td>
-                        <td class="actions">
-                            <button class="edit-btn" onclick="editSchedule(${sch.schedule_id})">Edit</button>
-                            <button class="delete-btn" onclick="deleteSchedule(${sch.schedule_id})">Delete</button>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                });
-
-                document.getElementById("emptyMessage").style.display = filtered.length === 0 ? "block" : "none";
-                document.getElementById("totalSchedules").textContent = schedules.length;
-                document.getElementById("scheduledTrips").textContent = schedules.filter(s => s.schedule_status === 'Scheduled').length;
-                document.getElementById("ongoingTrips").textContent = schedules.filter(s => s.schedule_status === 'Ongoing').length;
-                document.getElementById("completedTrips").textContent = schedules.filter(s => s.schedule_status === 'Completed').length;
-            }
-
-            function openScheduleForm() {
-                document.getElementById("scheduleForm").reset();
-                document.getElementById("scheduleId").value = "";
-                document.getElementById("scheduleFormTitle").textContent = "Add New Schedule";
-                document.getElementById("scheduleModal").style.display = "flex";
-            }
-
-            function closeScheduleForm() {
-                document.getElementById("scheduleModal").style.display = "none";
-            }
-
-            document.getElementById("scheduleForm").addEventListener("submit", async function(e) {
-                e.preventDefault();
-                
-                const depTime = document.getElementById("departureTime").value;
-                const arrTime = document.getElementById("arrivalTime").value;
-
-                // Validate time constraint (arrival_time > departure_time in Supabase)
-                if (arrTime <= depTime) {
-                    alert("Arrival time must be later than departure time.");
-                    return;
-                }
-
-                const id = document.getElementById("scheduleId").value;
-                const payload = {
-                    bus_id: Number(document.getElementById("busSelect").value),
-                    route_id: Number(document.getElementById("routeSelect").value),
-                    departure_date: document.getElementById("departureDate").value,
-                    departure_time: depTime,
-                    arrival_time: arrTime,
-                    available_seats: Number(document.getElementById("availableSeats").value),
-                    schedule_status: document.getElementById("scheduleStatus").value
-                };
-
-                if (id) {
-                    await DB.update('schedules', 'schedule_id', id, payload);
+                if (isBlockedStatus || (!isAvailable && !isCurrentEditBus)) {
+                    option.disabled = true;
+                    option.textContent = `🚫 ${bus.bus_number} (${bus.bus_type}, ${bus.seating_capacity} seats) — ${bus.status.toUpperCase()}`;
                 } else {
-                    await DB.create('schedules', payload);
+                    option.textContent = `✅ ${bus.bus_number} (${bus.bus_type}, ${bus.seating_capacity} seats) — [${bus.status}]`;
                 }
 
-                closeScheduleForm();
-                fetchSchedules();
+                busSelect.appendChild(option);
+            });
+        }
+
+        function populateRouteDropdown(allowedRouteId = null) {
+            const routeSelect = document.getElementById('routeSelect');
+            routeSelect.innerHTML = '<option value="">Select Route</option>';
+
+            routes.forEach(route => {
+                const option = document.createElement('option');
+                option.value = route.route_id;
+                option.dataset.status = route.status;
+
+                const isActive = route.status === 'Active';
+                const isCurrentEditRoute = allowedRouteId && Number(route.route_id) === Number(allowedRouteId);
+
+                if (!isActive && !isCurrentEditRoute) {
+                    option.disabled = true;
+                    option.textContent = `🚫 ${route.route_code}: ${route.origin} - ${route.destination} — INACTIVE ROUTE`;
+                } else {
+                    option.textContent = `✅ ${route.route_code}: ${route.origin} - ${route.destination} (₱${Number(route.fare).toFixed(2)})`;
+                }
+
+                routeSelect.appendChild(option);
+            });
+        }
+
+        async function loadDropdowns() {
+            buses = await DB.getAll('buses');
+            routes = await DB.getAll('routes');
+
+            populateBusDropdown();
+            populateRouteDropdown();
+        }
+
+        function onBusChange() {
+            const busId = Number(document.getElementById('busSelect').value);
+            const bus = buses.find(b => b.bus_id === busId);
+            const isEditing = document.getElementById('scheduleId').value !== "";
+
+            if (bus) {
+                document.getElementById('maxCapacityLabel').textContent = bus.seating_capacity;
+                document.getElementById('availableSeats').max = bus.seating_capacity;
+                if (!isEditing) {
+                    document.getElementById('availableSeats').value = bus.seating_capacity;
+                }
+            } else {
+                document.getElementById('maxCapacityLabel').textContent = '--';
+            }
+
+            runEligibilityCheck();
+        }
+
+        function validateScheduleRules() {
+            const editId = document.getElementById("scheduleId").value;
+            const busId = Number(document.getElementById("busSelect").value);
+            const routeId = Number(document.getElementById("routeSelect").value);
+            const depDate = document.getElementById("departureDate").value;
+            const depTime = document.getElementById("departureTime").value;
+            const arrTime = document.getElementById("arrivalTime").value;
+            const availSeats = Number(document.getElementById("availableSeats").value);
+            const schedStatus = document.getElementById("scheduleStatus").value;
+
+            const errors = [];
+            const bus = buses.find(b => b.bus_id === busId);
+            const route = routes.find(r => r.route_id === routeId);
+
+            if (bus) {
+                if (bus.status === 'Maintenance') {
+                    errors.push(`❌ Maintenance Bus: ${bus.bus_number} is under maintenance and cannot be assigned.`);
+                } else if (bus.status === 'Inactive') {
+                    errors.push(`❌ Inactive Bus: ${bus.bus_number} is inactive and cannot be assigned.`);
+                } else if (!editId && bus.status !== 'Available') {
+                    errors.push(`❌ Unavailable Bus: ${bus.bus_number} is currently "${bus.status}".`);
+                }
+
+                if (availSeats < 0) {
+                    errors.push(`❌ Invalid Seats: Available seats cannot be negative.`);
+                } else if (availSeats > bus.seating_capacity) {
+                    errors.push(`❌ Over Capacity: Available seats (${availSeats}) exceed ${bus.bus_number}'s capacity (${bus.seating_capacity} seats).`);
+                }
+            }
+
+            if (route && route.status !== 'Active') {
+                errors.push(`❌ Inactive Route: ${route.route_code} (${route.origin} - ${route.destination}) is "${route.status}" and cannot be used.`);
+            }
+
+            if (depDate) {
+                const todayStr = getTodayDateString();
+                if (!editId && depDate < todayStr) {
+                    errors.push(`❌ Past Date: Departure date (${depDate}) cannot be in the past.`);
+                } else if (!editId && depDate === todayStr && depTime) {
+                    const nowTimeStr = getCurrentTimeString();
+                    if (depTime.slice(0, 5) < nowTimeStr) {
+                        errors.push(`❌ Past Time: Departure time (${depTime.slice(0, 5)}) has already passed today.`);
+                    }
+                }
+            }
+
+            if (depTime && arrTime) {
+                if (arrTime.slice(0, 5) <= depTime.slice(0, 5)) {
+                    errors.push(`❌ Invalid Times: Arrival time (${arrTime.slice(0, 5)}) must be strictly later than departure time (${depTime.slice(0, 5)}).`);
+                }
+            }
+
+            if (bus && depDate && depTime && arrTime && !['Cancelled', 'Completed'].includes(schedStatus)) {
+                const normDep = depTime.slice(0, 5);
+                const normArr = arrTime.slice(0, 5);
+
+                const conflict = schedules.find(s => {
+                    if (String(s.schedule_id) === String(editId)) return false;
+                    if (s.bus_id !== busId) return false;
+                    if (s.departure_date !== depDate) return false;
+                    if (['Cancelled', 'Completed'].includes(s.schedule_status)) return false;
+
+                    const sDep = (s.departure_time || '').slice(0, 5);
+                    const sArr = (s.arrival_time || '').slice(0, 5);
+
+                    return normDep < sArr && normArr > sDep;
+                });
+
+                if (conflict) {
+                    const conflictRoute = routes.find(r => r.route_id === conflict.route_id);
+                    const routeStr = conflictRoute ? `${conflictRoute.origin} - ${conflictRoute.destination}` : `Route #${conflict.route_id}`;
+                    errors.push(`❌ Double-Booking Prevented: ${bus.bus_number} is already scheduled on ${depDate} from ${conflict.departure_time.slice(0,5)} to ${conflict.arrival_time.slice(0,5)} (${routeStr}).`);
+                }
+            }
+
+            return {
+                valid: errors.length === 0,
+                errors,
+                bus,
+                route
+            };
+        }
+
+        function runEligibilityCheck() {
+            const banner = document.getElementById("availabilityBanner");
+            const saveBtn = document.getElementById("saveScheduleBtn");
+
+            const hasAnyInput = document.getElementById("busSelect").value ||
+                                document.getElementById("routeSelect").value ||
+                                document.getElementById("departureDate").value ||
+                                document.getElementById("departureTime").value ||
+                                document.getElementById("arrivalTime").value;
+
+            if (!hasAnyInput) {
+                banner.style.display = "none";
+                saveBtn.disabled = false;
+                saveBtn.style.opacity = "1";
+                return;
+            }
+
+            const result = validateScheduleRules();
+
+            if (!result.valid) {
+                banner.style.display = "block";
+                banner.style.backgroundColor = "#f8d7da";
+                banner.style.color = "#721c24";
+                banner.style.border = "1px solid #f5c6cb";
+                banner.innerHTML = result.errors.join("<br>");
+                saveBtn.disabled = true;
+                saveBtn.style.opacity = "0.5";
+                saveBtn.style.cursor = "not-allowed";
+            } else {
+                banner.style.display = "none";
+                saveBtn.disabled = false;
+                saveBtn.style.opacity = "1";
+                saveBtn.style.cursor = "pointer";
+            }
+        }
+
+        async function fetchSchedules() {
+            schedules = await DB.getAll('schedules');
+            await loadDropdowns();
+            renderSchedules();
+        }
+
+        function renderSchedules() {
+            const tbody = document.getElementById("scheduleTableBody");
+            const search = document.getElementById("searchInput").value.toLowerCase().trim();
+            const statusFilter = document.getElementById("statusFilter").value;
+            const dateFilter = document.getElementById("dateFilter").value;
+
+            const filtered = schedules.filter(sch => {
+                const bus = buses.find(b => b.bus_id === sch.bus_id);
+                const route = routes.find(r => r.route_id === sch.route_id);
+                
+                const schedId = String(sch.schedule_id || '');
+                const busNum = bus ? bus.bus_number : '';
+                const routeText = route ? `${route.route_code} ${route.origin} ${route.destination}` : '';
+
+                const matchesSearch = [schedId, busNum, routeText].some(val => val.toLowerCase().includes(search));
+                const matchesStatus = statusFilter === "" || sch.schedule_status === statusFilter;
+                const matchesDate = !dateFilter || sch.departure_date === dateFilter;
+
+                return matchesSearch && matchesStatus && matchesDate;
             });
 
-            function editSchedule(id) {
-                const sch = schedules.find(s => s.schedule_id === id);
-                if (!sch) return;
+            tbody.innerHTML = "";
 
-                document.getElementById("scheduleId").value = sch.schedule_id;
-                document.getElementById("busSelect").value = sch.bus_id || '';
-                document.getElementById("routeSelect").value = sch.route_id || '';
-                document.getElementById("departureDate").value = sch.departure_date || '';
-                document.getElementById("departureTime").value = sch.departure_time || '';
-                document.getElementById("arrivalTime").value = sch.arrival_time || '';
-                document.getElementById("availableSeats").value = sch.available_seats ?? '';
-                document.getElementById("scheduleStatus").value = sch.schedule_status || 'Scheduled';
+            filtered.forEach(sch => {
+                const bus = buses.find(b => b.bus_id === sch.bus_id);
+                const route = routes.find(r => r.route_id === sch.route_id);
+                const statusVal = sch.schedule_status || 'Scheduled';
+                const totalCap = bus ? bus.seating_capacity : '?';
 
-                document.getElementById("scheduleFormTitle").textContent = "Edit Schedule";
-                document.getElementById("scheduleModal").style.display = "flex";
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td><strong>#${sch.schedule_id}</strong></td>
+                    <td>${bus ? `${bus.bus_number} (${bus.status})` : 'N/A'}</td>
+                    <td>${route ? `${route.origin} - ${route.destination}` : 'N/A'}</td>
+                    <td>${sch.departure_date || 'N/A'}</td>
+                    <td>${sch.departure_time || 'N/A'}</td>
+                    <td>${sch.arrival_time || 'N/A'}</td>
+                    <td>${sch.available_seats ?? 'N/A'} / ${totalCap}</td>
+                    <td>₱${route ? Number(route.fare).toFixed(2) : '0.00'}</td>
+                    <td><span class="status ${statusVal.toLowerCase()}">${statusVal}</span></td>
+                    <td class="actions">
+                        <button class="edit-btn" onclick="editSchedule(${sch.schedule_id})">Edit</button>
+                        <button class="delete-btn" onclick="deleteSchedule(${sch.schedule_id})">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            document.getElementById("emptyMessage").style.display = filtered.length === 0 ? "block" : "none";
+            document.getElementById("totalSchedules").textContent = schedules.length;
+            document.getElementById("scheduledTrips").textContent = schedules.filter(s => s.schedule_status === 'Scheduled').length;
+            document.getElementById("ongoingTrips").textContent = schedules.filter(s => s.schedule_status === 'Ongoing').length;
+            document.getElementById("completedTrips").textContent = schedules.filter(s => s.schedule_status === 'Completed').length;
+        }
+
+        function openScheduleForm() {
+            document.getElementById("scheduleForm").reset();
+            document.getElementById("scheduleId").value = "";
+
+            const depDateInput = document.getElementById("departureDate");
+            depDateInput.min = getTodayDateString();
+
+            populateBusDropdown(null);
+            populateRouteDropdown(null);
+
+            document.getElementById("maxCapacityLabel").textContent = "--";
+            document.getElementById("availabilityBanner").style.display = "none";
+            document.getElementById("saveScheduleBtn").disabled = false;
+            document.getElementById("saveScheduleBtn").style.opacity = "1";
+            document.getElementById("scheduleFormTitle").textContent = "Add New Schedule";
+            document.getElementById("scheduleModal").style.display = "flex";
+        }
+
+        function closeScheduleForm() {
+            document.getElementById("scheduleModal").style.display = "none";
+        }
+
+        document.getElementById("scheduleForm").addEventListener("submit", async function(e) {
+            e.preventDefault();
+
+            const validation = validateScheduleRules();
+            if (!validation.valid) {
+                alert("Cannot save schedule due to the following rule violations:\n\n" + validation.errors.join("\n"));
+                return;
             }
 
-            async function deleteSchedule(id) {
-                if (confirm("Are you sure you want to delete this schedule?")) {
-                    await DB.delete('schedules', 'schedule_id', id);
-                    fetchSchedules();
+            const id = document.getElementById("scheduleId").value;
+            const busId = Number(document.getElementById("busSelect").value);
+            const schedStatus = document.getElementById("scheduleStatus").value;
+
+            const payload = {
+                bus_id: busId,
+                route_id: Number(document.getElementById("routeSelect").value),
+                departure_date: document.getElementById("departureDate").value,
+                departure_time: document.getElementById("departureTime").value,
+                arrival_time: document.getElementById("arrivalTime").value,
+                available_seats: Number(document.getElementById("availableSeats").value),
+                schedule_status: schedStatus
+            };
+
+            if (id) {
+                await DB.update('schedules', 'schedule_id', id, payload);
+            } else {
+                await DB.create('schedules', payload);
+            }
+
+            if (schedStatus === 'Scheduled' && validation.bus && validation.bus.status === 'Available') {
+                await DB.update('buses', 'bus_id', busId, { status: 'Assigned' });
+            } else if (schedStatus === 'Ongoing') {
+                await DB.update('buses', 'bus_id', busId, { status: 'In Transit' });
+            } else if (['Completed', 'Cancelled'].includes(schedStatus)) {
+                await DB.update('buses', 'bus_id', busId, { status: 'Available' });
+            }
+
+            closeScheduleForm();
+            fetchSchedules();
+        });
+
+        function editSchedule(id) {
+            const sch = schedules.find(s => s.schedule_id === id);
+            if (!sch) return;
+
+            const bus = buses.find(b => b.bus_id === sch.bus_id);
+            populateBusDropdown(sch.bus_id);
+            populateRouteDropdown(sch.route_id);
+
+            document.getElementById("departureDate").removeAttribute("min");
+            document.getElementById("scheduleId").value = sch.schedule_id;
+            document.getElementById("busSelect").value = sch.bus_id || '';
+            document.getElementById("routeSelect").value = sch.route_id || '';
+            document.getElementById("departureDate").value = sch.departure_date || '';
+            document.getElementById("departureTime").value = sch.departure_time || '';
+            document.getElementById("arrivalTime").value = sch.arrival_time || '';
+            document.getElementById("availableSeats").value = sch.available_seats ?? '';
+            document.getElementById("scheduleStatus").value = sch.schedule_status || 'Scheduled';
+
+            if (bus) {
+                document.getElementById("maxCapacityLabel").textContent = bus.seating_capacity;
+                document.getElementById("availableSeats").max = bus.seating_capacity;
+            }
+
+            document.getElementById("scheduleFormTitle").textContent = "Edit Schedule";
+            document.getElementById("scheduleModal").style.display = "flex";
+            runEligibilityCheck();
+        }
+
+        async function deleteSchedule(id) {
+            const sch = schedules.find(s => s.schedule_id === id);
+            if (confirm("Are you sure you want to delete this schedule?")) {
+                await DB.delete('schedules', 'schedule_id', id);
+                if (sch && sch.bus_id) {
+                    const bus = buses.find(b => b.bus_id === sch.bus_id);
+                    if (bus && bus.status === 'Assigned') {
+                        await DB.update('buses', 'bus_id', sch.bus_id, { status: 'Available' });
+                    }
                 }
+                fetchSchedules();
             }
+        }
 
-            window.addEventListener('DOMContentLoaded', fetchSchedules);
-        </script>
-
-    </body>
+        window.addEventListener('DOMContentLoaded', fetchSchedules);
+    </script>
+</body>
 </html>

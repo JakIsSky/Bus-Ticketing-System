@@ -36,7 +36,7 @@
         <header class="topbar">
             <div>
                 <h2>Booking Management</h2>
-                <p>Manage passenger seat reservations and monitor bookings via Supabase.</p>
+                <p>Manage reservations, confirmations, payments, and trip completions via Supabase.</p>
             </div>
         </header>
 
@@ -44,7 +44,7 @@
             <div class="page-heading">
                 <div>
                     <h2>Booking List</h2>
-                    <p>Create, update, and manage all bus trip bookings.</p>
+                    <p>Create, confirm, modify, and inspect all bus trip bookings.</p>
                 </div>
                 <button class="add-btn" onclick="openBookingForm()">+ Add New Booking</button>
             </div>
@@ -55,27 +55,28 @@
                     <h2 id="totalBookings">0</h2>
                 </div>
                 <div class="summary-card">
-                    <p>Confirmed / Paid</p>
-                    <h2 id="confirmedBookings">0</h2>
-                </div>
-                <div class="summary-card">
                     <p>Pending</p>
                     <h2 id="pendingBookings">0</h2>
                 </div>
                 <div class="summary-card">
-                    <p>Cancelled</p>
-                    <h2 id="cancelledBookings">0</h2>
+                    <p>Confirmed / Paid</p>
+                    <h2 id="confirmedBookings">0</h2>
+                </div>
+                <div class="summary-card">
+                    <p>Completed</p>
+                    <h2 id="completedBookings">0</h2>
                 </div>
             </div>
 
             <div class="table-container">
                 <div class="table-toolbar">
-                    <input type="search" id="searchInput" placeholder="Search booking no, passenger, seat..." oninput="renderBookings()">
+                    <input type="search" id="searchInput" placeholder="Search booking no, passenger, route, seat..." oninput="renderBookings()">
                     <select id="statusFilter" onchange="renderBookings()">
                         <option value="">All Status</option>
                         <option value="Pending">Pending</option>
                         <option value="Confirmed">Confirmed</option>
-                        <option value="Cancelled">Cancelled</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Completed">Completed</option>
                     </select>
                 </div>
 
@@ -98,13 +99,13 @@
                     </table>
                 </div>
 
-                <p id="emptyMessage" class="empty-message" style="display:none;">No bookings found. Click "+ Add New Booking" to get started.</p>
+                <p id="emptyMessage" class="empty-message">No bookings found. Click "+ Add New Booking" to get started.</p>
             </div>
         </section>
     </main>
 
-    <!-- Add/Edit Booking Modal -->
-    <div class="modal" id="bookingModal" style="display:none;">
+    <!-- Add / Modify Booking Modal -->
+    <div class="modal" id="bookingModal">
         <div class="modal-content">
             <div class="modal-heading">
                 <h2 id="formTitle">Add New Booking</h2>
@@ -141,7 +142,7 @@
 
                     <div class="form-group">
                         <label for="fare">Fare (₱)</label>
-                        <input type="number" id="fare" step="0.01" min="0" placeholder="0.00" required>
+                        <input type="number" id="fare" step="0.01" min="0.01" placeholder="0.00" required>
                     </div>
 
                     <div class="form-group full-width">
@@ -149,7 +150,8 @@
                         <select id="bookingStatus" required>
                             <option value="Pending">Pending</option>
                             <option value="Confirmed">Confirmed</option>
-                            <option value="Cancelled">Cancelled</option>
+                            <option value="Paid">Paid</option>
+                            <option value="Completed">Completed</option>
                         </select>
                     </div>
                 </div>
@@ -162,6 +164,20 @@
         </div>
     </div>
 
+    <!-- View Booking Details Modal -->
+    <div class="modal" id="bookingDetailsModal">
+        <div class="modal-content profile-modal-content">
+            <div class="modal-heading">
+                <h2 id="detailsModalTitle">Booking Details</h2>
+                <button type="button" class="close-btn" onclick="closeBookingDetails()">×</button>
+            </div>
+
+            <div class="profile-header-card" id="bookingDetailsCard"></div>
+
+            <div class="form-actions" id="bookingDetailsActions"></div>
+        </div>
+    </div>
+
     <script>
         let bookings = [];
         let passengers = [];
@@ -169,26 +185,40 @@
         let buses = [];
         let routes = [];
 
-        // Load reference lookup data and bookings from Supabase
         async function fetchAllData() {
-            passengers = await DB.getAll('passengers');
-            schedules = await DB.getAll('schedules');
-            buses = await DB.getAll('buses');
-            routes = await DB.getAll('routes');
-            bookings = await DB.getAll('bookings');
+            [passengers, schedules, buses, routes, bookings] = await Promise.all([
+                DB.getAll('passengers'),
+                DB.getAll('schedules'),
+                DB.getAll('buses'),
+                DB.getAll('routes'),
+                DB.getAll('bookings')
+            ]);
 
             populateDropdowns();
             renderBookings();
         }
 
-        // Populate dropdown options for Passenger and Schedule
+        function generateNextBookingNumber() {
+            const year = new Date().getFullYear();
+            let maxNum = 0;
+            bookings.forEach(b => {
+                const match = String(b.booking_number || '').match(/(\d+)$/);
+                if (match) {
+                    const num = parseInt(match[1], 10);
+                    if (num > maxNum) maxNum = num;
+                }
+            });
+            return `BK-${year}-${String(maxNum + 1).padStart(3, '0')}`;
+        }
+
         function populateDropdowns() {
             const passSelect = document.getElementById("passengerId");
             passSelect.innerHTML = '<option value="">Select Passenger</option>';
             passengers.forEach(p => {
                 const opt = document.createElement("option");
                 opt.value = p.passenger_id;
-                opt.textContent = `${p.passenger_number} - ${p.first_name} ${p.last_name}`;
+                const statusTag = p.status !== 'Active' ? ` [${p.status}]` : '';
+                opt.textContent = `${p.passenger_number} - ${p.first_name} ${p.last_name}${statusTag}`;
                 passSelect.appendChild(opt);
             });
 
@@ -199,21 +229,187 @@
                 const busObj = buses.find(b => b.bus_id === s.bus_id);
                 const routeName = routeObj ? `${routeObj.origin} ➔ ${routeObj.destination}` : 'Unknown Route';
                 const busNum = busObj ? busObj.bus_number : 'Bus';
+                const activeBookingsCount = bookings.filter(
+                    b => b.schedule_id === s.schedule_id
+                ).length;
+                const capText = busObj ? ` | Seats: ${activeBookingsCount}/${busObj.capacity}` : '';
 
                 const opt = document.createElement("option");
                 opt.value = s.schedule_id;
                 opt.dataset.fare = routeObj ? routeObj.fare : 0;
-                opt.textContent = `[ID: ${s.schedule_id}] ${routeName} (${busNum}) - ${s.departure_date} @ ${s.departure_time}`;
+                opt.textContent = `[ID: ${s.schedule_id}] ${routeName} (${busNum}${capText}) - ${s.departure_date} @ ${s.departure_time} [${s.schedule_status || 'Scheduled'}]`;
                 schedSelect.appendChild(opt);
             });
         }
 
-        // Auto-fill fare when schedule is picked
         function onScheduleSelect() {
             const schedSelect = document.getElementById("scheduleId");
             const selectedOpt = schedSelect.options[schedSelect.selectedIndex];
             if (selectedOpt && selectedOpt.dataset.fare) {
                 document.getElementById("fare").value = selectedOpt.dataset.fare;
+            }
+        }
+
+        // Validation Rules (Lab 17)
+        function validateBooking(id, payload) {
+            const passenger = passengers.find(p => p.passenger_id === payload.passenger_id);
+            if (!passenger) {
+                alert("Validation Error: Invalid passenger selected. Please choose a registered passenger.");
+                return false;
+            }
+            if ((passenger.status || '').toLowerCase() !== 'active') {
+                alert(`Validation Error: Passenger ${passenger.first_name} ${passenger.last_name} is currently ${passenger.status} and cannot make bookings.`);
+                return false;
+            }
+
+            const schedule = schedules.find(s => s.schedule_id === payload.schedule_id);
+            if (!schedule) {
+                alert("Validation Error: Selected schedule does not exist.");
+                return false;
+            }
+            const route = routes.find(r => r.route_id === schedule.route_id);
+            const bus = buses.find(b => b.bus_id === schedule.bus_id);
+
+            const targetStatus = (payload.booking_status || '').toLowerCase();
+
+            // Enforce active/future schedule checks for Pending/Confirmed bookings
+            if (['pending', 'confirmed'].includes(targetStatus)) {
+                const schedStatus = (schedule.schedule_status || 'Scheduled').toLowerCase();
+                if (schedStatus !== 'scheduled') {
+                    alert(`Validation Error: Cannot book or confirm an inactive schedule (Current status: ${schedule.schedule_status}). Only 'Scheduled' trips can be booked.`);
+                    return false;
+                }
+                if (route && (route.status || '').toLowerCase() !== 'active') {
+                    alert(`Validation Error: The route (${route.origin} ➔ ${route.destination}) for this schedule is currently Inactive.`);
+                    return false;
+                }
+                if (bus && ['maintenance', 'inactive'].includes((bus.status || '').toLowerCase())) {
+                    alert(`Validation Error: The assigned bus (${bus.bus_number}) is currently ${bus.status}.`);
+                    return false;
+                }
+
+                if (schedule.departure_date) {
+                    const timePart = schedule.departure_time || '00:00:00';
+                    const departureDateTime = new Date(`${schedule.departure_date}T${timePart}`);
+                    const now = new Date();
+                    if (!isNaN(departureDateTime.getTime()) && departureDateTime < now) {
+                        alert(`Validation Error: Cannot book or confirm a past schedule (${schedule.departure_date} @ ${schedule.departure_time}).`);
+                        return false;
+                    }
+                }
+            }
+
+            if (isNaN(payload.fare) || payload.fare <= 0) {
+                alert("Validation Error: Invalid fare. Fare must be greater than ₱0.00.");
+                return false;
+            }
+            if (route && Number(route.fare) > 0 && Number(payload.fare) !== Number(route.fare)) {
+                alert(`Validation Error: Invalid fare (₱${payload.fare.toFixed(2)}). The official fare for this route is ₱${Number(route.fare).toFixed(2)}.`);
+                return false;
+            }
+
+            const scheduleBookings = bookings.filter(b =>
+                String(b.booking_id) !== String(id) &&
+                b.schedule_id === payload.schedule_id
+            );
+
+            if (!payload.booking_number) {
+                alert("Validation Error: Booking number is required.");
+                return false;
+            }
+            const duplicateBookingNumber = bookings.find(b =>
+                String(b.booking_id) !== String(id) &&
+                (b.booking_number || '').trim().toLowerCase() === payload.booking_number.toLowerCase()
+            );
+            if (duplicateBookingNumber) {
+                alert(`Validation Error: Duplicate booking number "${payload.booking_number}" already exists.`);
+                return false;
+            }
+
+            const duplicatePassengerTrip = scheduleBookings.find(
+                b => b.passenger_id === payload.passenger_id
+            );
+            if (duplicatePassengerTrip) {
+                alert(`Validation Error: Duplicate booking prevented. ${passenger.first_name} ${passenger.last_name} already has a booking (${duplicatePassengerTrip.booking_number}) on this schedule.`);
+                return false;
+            }
+
+            if (!payload.seat_number) {
+                alert("Validation Error: Seat number is required.");
+                return false;
+            }
+            const occupiedSeat = scheduleBookings.find(
+                b => (b.seat_number || '').trim().toLowerCase() === payload.seat_number.toLowerCase()
+            );
+            if (occupiedSeat) {
+                alert(`Validation Error: Seat "${payload.seat_number}" is already occupied on this schedule (Booking ${occupiedSeat.booking_number}).`);
+                return false;
+            }
+
+            if (bus && Number(bus.capacity) > 0) {
+                const capacity = Number(bus.capacity);
+                if (scheduleBookings.length >= capacity) {
+                    alert(`Validation Error: Bus ${bus.bus_number} has reached its maximum capacity of ${capacity} seats.`);
+                    return false;
+                }
+                const numericSeat = parseInt(payload.seat_number.replace(/\D/g, ''), 10);
+                if (!isNaN(numericSeat) && numericSeat > capacity) {
+                    alert(`Validation Error: Seat ${payload.seat_number} exceeds Bus ${bus.bus_number}'s maximum seating capacity (${capacity}).`);
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        // Status Lifecycle Transitions: Pending -> Confirmed -> Paid -> Completed
+        async function updateBookingStatus(id, nextStatus) {
+            const b = bookings.find(item => item.booking_id === id);
+            if (!b) return;
+
+            const currentStatus = b.booking_status || 'Pending';
+
+            if (currentStatus === 'Completed') {
+                alert("Completed bookings cannot be modified.");
+                return;
+            }
+            if (nextStatus === 'Paid' && currentStatus !== 'Confirmed') {
+                alert("A booking must be Confirmed before marking it as Paid.");
+                return;
+            }
+            if (nextStatus === 'Completed' && currentStatus !== 'Paid') {
+                alert("A booking must be Paid before marking it as Completed.");
+                return;
+            }
+
+            const confirmMessages = {
+                'Confirmed': `Confirm booking ${b.booking_number} for seat ${b.seat_number}?`,
+                'Paid': `Mark booking ${b.booking_number} (₱${Number(b.fare).toFixed(2)}) as Paid?`,
+                'Completed': `Mark trip for booking ${b.booking_number} as Completed?`
+            };
+
+            if (!confirm(confirmMessages[nextStatus] || `Change status to ${nextStatus}?`)) {
+                return;
+            }
+
+            const updatedPayload = {
+                booking_number: b.booking_number,
+                passenger_id: b.passenger_id,
+                schedule_id: b.schedule_id,
+                seat_number: b.seat_number,
+                fare: Number(b.fare),
+                booking_status: nextStatus
+            };
+
+            if (nextStatus === 'Confirmed' && !validateBooking(id, updatedPayload)) {
+                return;
+            }
+
+            const result = await DB.update('bookings', 'booking_id', id, { booking_status: nextStatus });
+            if (result) {
+                alert(`Booking ${b.booking_number} updated to ${nextStatus}.`);
+                closeBookingDetails();
+                fetchAllData();
             }
         }
 
@@ -225,11 +421,17 @@
 
             const filtered = bookings.filter(b => {
                 const passObj = passengers.find(p => p.passenger_id === b.passenger_id);
-                const passName = passObj ? `${passObj.first_name} ${passObj.last_name}` : '';
+                const schedObj = schedules.find(s => s.schedule_id === b.schedule_id);
+                const routeObj = schedObj ? routes.find(r => r.route_id === schedObj.route_id) : null;
+
+                const passName = passObj ? `${passObj.first_name} ${passObj.last_name} ${passObj.passenger_number}` : '';
+                const routeText = routeObj ? `${routeObj.origin} ${routeObj.destination} ${routeObj.route_code}` : '';
                 const bookingNo = b.booking_number || '';
                 const seatNo = b.seat_number || '';
 
-                const matchesSearch = [bookingNo, passName, seatNo].some(val => val.toLowerCase().includes(search));
+                const matchesSearch = [String(b.booking_id), bookingNo, passName, routeText, seatNo].some(val =>
+                    val.toLowerCase().includes(search)
+                );
                 return matchesSearch && (filter === "" || b.booking_status === filter);
             });
 
@@ -242,6 +444,16 @@
                 const passName = passObj ? `${passObj.first_name} ${passObj.last_name}` : `ID: ${b.passenger_id}`;
                 const routeName = routeObj ? `${routeObj.origin} ➔ ${routeObj.destination}` : `Schedule #${b.schedule_id}`;
                 const dateTime = schedObj ? `${schedObj.departure_date} ${schedObj.departure_time}` : 'N/A';
+                const status = b.booking_status || 'Pending';
+
+                let workflowButton = '';
+                if (status === 'Pending') {
+                    workflowButton = `<button class="view-btn" onclick="updateBookingStatus(${b.booking_id}, 'Confirmed')">Confirm</button>`;
+                } else if (status === 'Confirmed') {
+                    workflowButton = `<button class="view-btn" onclick="updateBookingStatus(${b.booking_id}, 'Paid')">Mark Paid</button>`;
+                } else if (status === 'Paid') {
+                    workflowButton = `<button class="view-btn" onclick="updateBookingStatus(${b.booking_id}, 'Completed')">Complete</button>`;
+                }
 
                 const row = document.createElement("tr");
                 row.innerHTML = `
@@ -252,9 +464,11 @@
                     <td>${dateTime}</td>
                     <td>${b.seat_number}</td>
                     <td>₱${Number(b.fare).toFixed(2)}</td>
-                    <td><span class="status ${(b.booking_status || '').toLowerCase()}">${b.booking_status}</span></td>
+                    <td><span class="status ${status.toLowerCase()}">${status}</span></td>
                     <td class="actions">
-                        <button class="edit-btn" onclick="editBooking(${b.booking_id})">Edit</button>
+                        <button class="cancel-btn" onclick="viewBookingDetails(${b.booking_id})">Details</button>
+                        ${workflowButton}
+                        <button class="edit-btn" onclick="editBooking(${b.booking_id})">Modify</button>
                         <button class="delete-btn" onclick="deleteBooking(${b.booking_id})">Delete</button>
                     </td>
                 `;
@@ -263,16 +477,92 @@
 
             document.getElementById("emptyMessage").style.display = filtered.length === 0 ? "block" : "none";
             document.getElementById("totalBookings").textContent = bookings.length;
-            document.getElementById("confirmedBookings").textContent = bookings.filter(b => ['Confirmed', 'Paid'].includes(b.booking_status)).length;
             document.getElementById("pendingBookings").textContent = bookings.filter(b => b.booking_status === "Pending").length;
-            document.getElementById("cancelledBookings").textContent = bookings.filter(b => b.booking_status === "Cancelled").length;
+            document.getElementById("confirmedBookings").textContent = bookings.filter(b =>
+                ['Confirmed', 'Paid'].includes(b.booking_status)
+            ).length;
+            document.getElementById("completedBookings").textContent = bookings.filter(b => b.booking_status === "Completed").length;
         }
 
-        // Modal Controls
+        // View Booking Details Modal
+        function viewBookingDetails(id) {
+            const b = bookings.find(item => item.booking_id === id);
+            if (!b) return;
+
+            const passObj = passengers.find(p => p.passenger_id === b.passenger_id);
+            const schedObj = schedules.find(s => s.schedule_id === b.schedule_id);
+            const routeObj = schedObj ? routes.find(r => r.route_id === schedObj.route_id) : null;
+            const busObj = schedObj ? buses.find(bs => bs.bus_id === schedObj.bus_id) : null;
+            const status = b.booking_status || 'Pending';
+
+            document.getElementById("detailsModalTitle").textContent = `Booking Details — ${b.booking_number}`;
+
+            document.getElementById("bookingDetailsCard").innerHTML = `
+                <div class="profile-field">
+                    <label>Booking Number</label>
+                    <span>${b.booking_number} (ID #${b.booking_id})</span>
+                </div>
+                <div class="profile-field">
+                    <label>Current Status</label>
+                    <span class="status ${status.toLowerCase()}">${status}</span>
+                </div>
+                <div class="profile-field">
+                    <label>Seat & Fare</label>
+                    <span>Seat ${b.seat_number} — ₱${Number(b.fare).toFixed(2)}</span>
+                </div>
+                <div class="profile-field">
+                    <label>Passenger</label>
+                    <span>${passObj ? `${passObj.first_name} ${passObj.last_name} (${passObj.passenger_number})` : `ID #${b.passenger_id}`}</span>
+                </div>
+                <div class="profile-field">
+                    <label>Passenger Contact</label>
+                    <span>${passObj ? `${passObj.contact_number} | ${passObj.email}` : 'N/A'}</span>
+                </div>
+                <div class="profile-field">
+                    <label>Assigned Bus</label>
+                    <span>${busObj ? `${busObj.bus_number} (${busObj.bus_type || 'Standard'})` : 'N/A'}</span>
+                </div>
+                <div class="profile-field">
+                    <label>Route</label>
+                    <span>${routeObj ? `${routeObj.route_code}: ${routeObj.origin} ➔ ${routeObj.destination}` : 'N/A'}</span>
+                </div>
+                <div class="profile-field">
+                    <label>Departure Schedule</label>
+                    <span>${schedObj ? `${schedObj.departure_date} @ ${schedObj.departure_time}` : 'N/A'}</span>
+                </div>
+                <div class="profile-field">
+                    <label>Booking Date</label>
+                    <span>${b.booking_date ? new Date(b.booking_date).toLocaleString() : 'Recorded'}</span>
+                </div>
+            `;
+
+            const actionsContainer = document.getElementById("bookingDetailsActions");
+            let actionButtons = `<button type="button" class="cancel-btn" onclick="closeBookingDetails()">Close</button>`;
+
+            if (status !== 'Completed') {
+                actionButtons += `<button type="button" class="edit-btn" onclick="closeBookingDetails(); editBooking(${b.booking_id});">Modify Booking</button>`;
+            }
+            if (status === 'Pending') {
+                actionButtons += `<button type="button" class="view-btn" onclick="updateBookingStatus(${b.booking_id}, 'Confirmed')">Confirm Booking</button>`;
+            } else if (status === 'Confirmed') {
+                actionButtons += `<button type="button" class="view-btn" onclick="updateBookingStatus(${b.booking_id}, 'Paid')">Mark as Paid</button>`;
+            } else if (status === 'Paid') {
+                actionButtons += `<button type="button" class="save-btn" onclick="updateBookingStatus(${b.booking_id}, 'Completed')">Complete Trip</button>`;
+            }
+
+            actionsContainer.innerHTML = actionButtons;
+            document.getElementById("bookingDetailsModal").style.display = "flex";
+        }
+
+        function closeBookingDetails() {
+            document.getElementById("bookingDetailsModal").style.display = "none";
+        }
+
+        // Add / Modify Modal Controls
         function openBookingForm() {
             document.getElementById("bookingForm").reset();
             document.getElementById("bookingId").value = "";
-            document.getElementById("bookingNumber").value = ""; // Left empty for manual input
+            document.getElementById("bookingNumber").value = generateNextBookingNumber();
             document.getElementById("formTitle").textContent = "Add New Booking";
             document.getElementById("bookingModal").style.display = "flex";
         }
@@ -281,7 +571,6 @@
             document.getElementById("bookingModal").style.display = "none";
         }
 
-        // Submit Handler for Insert / Update
         document.getElementById("bookingForm").addEventListener("submit", async function(e) {
             e.preventDefault();
 
@@ -290,22 +579,29 @@
                 booking_number: document.getElementById("bookingNumber").value.trim(),
                 passenger_id: Number(document.getElementById("passengerId").value),
                 schedule_id: Number(document.getElementById("scheduleId").value),
-                seat_number: document.getElementById("seatNumber").value.trim(),
+                seat_number: document.getElementById("seatNumber").value.trim().toUpperCase(),
                 fare: Number(document.getElementById("fare").value),
                 booking_status: document.getElementById("bookingStatus").value
             };
 
-            if (id) {
-                await DB.update('bookings', 'booking_id', id, payload);
-            } else {
-                await DB.create('bookings', payload);
+            if (!validateBooking(id, payload)) {
+                return;
             }
 
-            closeBookingForm();
-            fetchAllData();
+            let result;
+            if (id) {
+                result = await DB.update('bookings', 'booking_id', id, payload);
+            } else {
+                result = await DB.create('bookings', payload);
+            }
+
+            if (result) {
+                alert("Booking saved successfully!");
+                closeBookingForm();
+                fetchAllData();
+            }
         });
 
-        // Edit Booking
         function editBooking(id) {
             const b = bookings.find(item => item.booking_id === id);
             if (!b) return;
@@ -318,13 +614,15 @@
             document.getElementById("fare").value = b.fare;
             document.getElementById("bookingStatus").value = b.booking_status;
 
-            document.getElementById("formTitle").textContent = "Edit Booking";
+            document.getElementById("formTitle").textContent = "Modify Booking";
             document.getElementById("bookingModal").style.display = "flex";
         }
 
-        // Delete Booking
         async function deleteBooking(id) {
-            if (confirm("Are you sure you want to delete this booking?")) {
+            const b = bookings.find(item => item.booking_id === id);
+            if (!b) return;
+
+            if (confirm(`Are you sure you want to delete booking ${b.booking_number}?`)) {
                 await DB.delete('bookings', 'booking_id', id);
                 fetchAllData();
             }

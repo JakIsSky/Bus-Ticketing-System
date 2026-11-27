@@ -1,7 +1,6 @@
 (function (global) {
     'use strict';
 
-    // Only used if supabase.js does not already expose a client.
     const FALLBACK_SUPABASE_URL = '';
     const FALLBACK_SUPABASE_ANON_KEY = '';
 
@@ -9,28 +8,54 @@
     const HOME_PAGE = 'index.html';
     const PROFILE_KEY = 'bts_profile';
     const ACTIVITY_KEY = 'bts_last_activity';
-    const IDLE_LIMIT_MS = 30 * 60 * 1000; // auto sign-out after 30 min idle
+    const IDLE_LIMIT_MS = 30 * 60 * 1000;
 
     const ALL_PAGES = [
         'index.html', 'bus_management.html', 'route_management.html',
         'schedule_management.html', 'passenger_management.html', 'booking.html',
-        'payment.html', 'ticket.html', 'user.html', 'report.html'
+        'payment.html', 'ticket.html', 'boarding.html', 'user.html', 'report.html'
     ];
 
-    // Lab 32 – pages each role may open
+    // Lab 32 – Page-level access matrix per role
     const BOOKING_PAGES = ['index.html', 'passenger_management.html', 'schedule_management.html', 'booking.html'];
     const ROLE_PAGES = {
         'Admin': ['*'],
+        'Administrator': ['*'],
         'Transportation Manager': ['index.html', 'bus_management.html', 'route_management.html', 'schedule_management.html', 'report.html'],
         'Booking Staff': BOOKING_PAGES,
-        'Staff': BOOKING_PAGES, // legacy role value
-        'Cashier': ['index.html', 'payment.html', 'ticket.html'],
-        'Dispatcher': ['index.html', 'bus_management.html', 'schedule_management.html'],
+        'Staff': BOOKING_PAGES,
+        'Cashier': ['index.html', 'payment.html', 'ticket.html', 'boarding.html'],
+        'Dispatcher': ['index.html', 'bus_management.html', 'schedule_management.html', 'boarding.html'],
         'Management': ['index.html', 'report.html']
+    };
+
+    // Lab 32 – Function-level permissions on shared pages
+    const ROLE_ACTIONS = {
+        'Admin': ['*'],
+        'Administrator': ['*'],
+        'Transportation Manager': [
+            'buses:write', 'routes:write', 'schedules:write', 'reports:view', 'reports:export'
+        ],
+        'Booking Staff': [
+            'passengers:write', 'bookings:write', 'schedules:read'
+        ],
+        'Staff': [
+            'passengers:write', 'bookings:write', 'schedules:read'
+        ],
+        'Cashier': [
+            'payments:write', 'tickets:write', 'tickets:print', 'boarding:verify'
+        ],
+        'Dispatcher': [
+            'buses:write', 'schedules:write', 'boarding:verify'
+        ],
+        'Management': [
+            'reports:view', 'reports:export'
+        ]
     };
 
     const ROLE_LABELS = {
         'Admin': 'Administrator',
+        'Administrator': 'Administrator',
         'Transportation Manager': 'Transportation Manager',
         'Booking Staff': 'Booking Staff',
         'Staff': 'Booking Staff',
@@ -57,7 +82,7 @@
         clientInstance = findExistingClient();
         if (!clientInstance) {
             if (!FALLBACK_SUPABASE_URL || !FALLBACK_SUPABASE_ANON_KEY || !global.supabase || !global.supabase.createClient) {
-                throw new Error('auth.js: no Supabase client found. Fill FALLBACK_SUPABASE_URL / FALLBACK_SUPABASE_ANON_KEY at the top of auth.js.');
+                throw new Error('auth.js: no Supabase client found.');
             }
             clientInstance = global.supabase.createClient(FALLBACK_SUPABASE_URL, FALLBACK_SUPABASE_ANON_KEY);
         }
@@ -68,7 +93,7 @@
     function currentPage() {
         let file = decodeURIComponent(location.pathname.split('/').pop() || '');
         if (!file) return HOME_PAGE;
-        if (!file.includes('.')) file += '.html'; // Vercel clean URLs
+        if (!file.includes('.')) file += '.html';
         return file.toLowerCase();
     }
 
@@ -76,6 +101,12 @@
         const allowed = ROLE_PAGES[role];
         if (!allowed) return false;
         return allowed.includes('*') || allowed.includes(page);
+    }
+
+    function canPerform(role, permission) {
+        const perms = ROLE_ACTIONS[role];
+        if (!perms) return false;
+        return perms.includes('*') || perms.includes(permission);
     }
 
     function cacheProfile(p) { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch (e) {} }
@@ -97,7 +128,6 @@
         location.replace(LOGIN_PAGE + (reason ? '?reason=' + encodeURIComponent(reason) : ''));
     }
 
-    // Fresh copy of the profile from the database (so deactivation takes effect)
     async function fetchProfile(userId) {
         const { data, error } = await client()
             .from('users')
@@ -108,7 +138,6 @@
         return data;
     }
 
-    // Account activation / deactivation check. Returns an error message or null.
     function profileProblem(profile) {
         if (!profile) return 'Account not found.';
         if (profile.status === 'Pending') return 'Your account is waiting for administrator approval.';
@@ -214,10 +243,10 @@
 
     function showDenied() {
         document.body.innerHTML =
-            '<div style="font-family:system-ui,sans-serif;max-width:420px;margin:15vh auto;text-align:center;padding:24px">' +
-            '<div style="font-size:48px">🔒</div>' +
-            '<h2 style="margin:12px 0 6px">Access denied</h2>' +
-            '<p style="color:#64748b">Your role is not allowed to open this page. Taking you back to the dashboard…</p></div>';
+            '<div class="rbac-denied-card">' +
+            '<div class="rbac-denied-icon">🔒</div>' +
+            '<h2>Access Denied</h2>' +
+            '<p>Your role is not authorized to access this module. Redirecting to the dashboard…</p></div>';
         reveal();
     }
 
@@ -269,44 +298,53 @@
         });
         setInterval(function () { if (idleExpired()) logout('timeout'); }, 30000);
 
-        // Logged out in another tab -> leave this one too
         window.addEventListener('storage', function (e) {
             if (e.key === PROFILE_KEY && !e.newValue) redirectToLogin('loggedout');
         });
     }
 
     /* --------------------------------- UI ------------------------------- */
-    function applyUi(profile) {
-        const role = profile.role;
+    function enforcePagePermissions(role) {
+        const page = currentPage();
 
+        // Hide navigation links to unauthorized pages
         document.querySelectorAll('a[href]').forEach(function (a) {
             const href = a.getAttribute('href') || '';
             if (!href || /^(https?:|#|mailto:|tel:|javascript:)/i.test(href)) return;
             const file = href.split(/[?#]/)[0].split('/').pop().toLowerCase();
-            if (ALL_PAGES.includes(file) && !canAccess(role, file)) a.style.display = 'none';
+            if (ALL_PAGES.includes(file) && !canAccess(role, file)) {
+                a.style.display = 'none';
+            }
         });
 
-        // Optional: <button data-roles="Admin,Cashier"> is hidden for other roles
+        // Hide elements explicitly tagged with data-roles="Admin,Cashier"
         document.querySelectorAll('[data-roles]').forEach(function (el) {
             const roles = el.getAttribute('data-roles').split(',').map(function (r) { return r.trim(); });
             if (!roles.includes(role)) el.style.display = 'none';
         });
 
+        // Enforce read-only schedule view for Booking Staff
+        if (page === 'schedule_management.html' && !canPerform(role, 'schedules:write')) {
+            document.querySelectorAll('.add-btn, .edit-btn, .delete-btn').forEach(function (btn) {
+                btn.style.display = 'none';
+            });
+        }
+    }
+
+    function applyUi(profile) {
+        const role = profile.role;
+        enforcePagePermissions(role);
         injectUserBox(profile);
+
+        // Re-apply permissions when tables render dynamically via Supabase
+        const observer = new MutationObserver(function () {
+            enforcePagePermissions(role);
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
     }
 
     function injectUserBox(profile) {
         if (document.getElementById('btsUserBox')) return;
-
-        const style = document.createElement('style');
-        style.textContent =
-            '.bts-userbox{margin-top:auto;padding:14px 16px;border-top:1px solid rgba(127,127,127,.35);font-size:.85rem}' +
-            '.bts-userbox.bts-floating{position:fixed;right:16px;bottom:16px;background:#fff;color:#0f172a;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:9999}' +
-            '.bts-name{font-weight:600;word-break:break-word}' +
-            '.bts-role{display:inline-block;margin:4px 0 10px;padding:2px 8px;border-radius:999px;background:rgba(127,127,127,.22);font-size:.75rem}' +
-            '.bts-logout{display:block;width:100%;padding:8px;border:0;border-radius:6px;background:#ef4444;color:#fff;font-weight:600;cursor:pointer}' +
-            '.bts-logout:hover{background:#dc2626}';
-        document.head.appendChild(style);
 
         const box = document.createElement('div');
         box.id = 'btsUserBox';
@@ -331,8 +369,12 @@
         box.appendChild(btn);
 
         const sidebar = document.querySelector('.sidebar');
-        if (sidebar) sidebar.appendChild(box);
-        else { box.classList.add('bts-floating'); document.body.appendChild(box); }
+        if (sidebar) {
+            sidebar.appendChild(box);
+        } else {
+            box.classList.add('bts-floating');
+            document.body.appendChild(box);
+        }
     }
 
     /* -------------------------------- export ---------------------------- */
@@ -348,12 +390,15 @@
             const p = readCachedProfile();
             return !!p && canAccess(p.role, String(page).toLowerCase());
         },
+        canPerform: function (permission) {
+            const p = readCachedProfile();
+            return !!p && canPerform(p.role, permission);
+        },
         getRole: function () { const p = readCachedProfile(); return p ? p.role : null; },
         ROLE_LABELS: ROLE_LABELS,
         client: client
     };
 
-    // Auto-protect every page except the login page
     if (currentPage() !== LOGIN_PAGE) {
         document.documentElement.style.visibility = 'hidden';
         requireAuth();

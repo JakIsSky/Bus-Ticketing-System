@@ -36,7 +36,7 @@
         <header class="topbar">
             <div>
                 <h2>Payment Management</h2>
-                <p>Process, record, and monitor cash or online passenger payments via Supabase.</p>
+                <p>Process, validate, and monitor passenger payments via Supabase.</p>
             </div>
         </header>
 
@@ -44,7 +44,7 @@
             <div class="page-heading">
                 <div>
                     <h2>Payment Transactions</h2>
-                    <p>Process payments for pending bookings and track transaction history.</p>
+                    <p>Process payments for bookings, calculate change automatically, and track transaction history.</p>
                 </div>
                 <button class="add-btn" onclick="openPaymentForm()">+ Process New Payment</button>
             </div>
@@ -70,7 +70,7 @@
 
             <div class="table-container">
                 <div class="table-toolbar">
-                    <input type="search" id="searchInput" placeholder="Search payment ID, booking no, method..." oninput="renderPayments()">
+                    <input type="search" id="searchInput" placeholder="Search payment ID, booking no, passenger, method..." oninput="renderPayments()">
                     <select id="methodFilter" onchange="renderPayments()">
                         <option value="">All Methods</option>
                         <option value="Cash">Cash</option>
@@ -94,7 +94,7 @@
                                 <th>Payment ID</th>
                                 <th>Booking No.</th>
                                 <th>Passenger</th>
-                                <th>Date & Time</th>
+                                <th>Payment Date</th>
                                 <th>Amount Due</th>
                                 <th>Amount Paid</th>
                                 <th>Change</th>
@@ -107,13 +107,13 @@
                     </table>
                 </div>
 
-                <p id="emptyMessage" class="empty-message" style="display:none;">No payment transactions found. Click "+ Process New Payment" to get started.</p>
+                <p id="emptyMessage" class="empty-message">No payment transactions found. Click "+ Process New Payment" to get started.</p>
             </div>
         </section>
     </main>
 
     <!-- Process Payment Modal -->
-    <div class="modal" id="paymentModal" style="display:none;">
+    <div class="modal" id="paymentModal">
         <div class="modal-content">
             <div class="modal-heading">
                 <h2 id="formTitle">Process Payment</h2>
@@ -125,29 +125,39 @@
 
                 <div class="form-grid">
                     <div class="form-group full-width">
-                        <label for="bookingId">Select Booking</label>
+                        <label for="bookingId">Booking Number *</label>
                         <select id="bookingId" onchange="onBookingSelect()" required>
                             <option value="">Select a Booking</option>
                         </select>
                     </div>
 
                     <div class="form-group">
-                        <label for="amountDue">Amount Due (₱)</label>
+                        <label for="passengerDisplay">Passenger</label>
+                        <input type="text" id="passengerDisplay" placeholder="Auto-filled from booking" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="paymentDate">Payment Date *</label>
+                        <input type="datetime-local" id="paymentDate" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="amountDue">Amount Due (₱) *</label>
                         <input type="number" id="amountDue" step="0.01" min="0.01" readonly required>
                     </div>
 
                     <div class="form-group">
-                        <label for="amountPaid">Amount Paid (₱)</label>
-                        <input type="number" id="amountPaid" step="0.01" min="0.01" oninput="calculateChange()" required>
+                        <label for="amountPaid">Amount Paid (₱) *</label>
+                        <input type="number" id="amountPaid" step="0.01" min="0.01" placeholder="0.00" oninput="calculateChange()" required>
                     </div>
 
                     <div class="form-group">
-                        <label for="changeAmount">Change Amount (₱)</label>
+                        <label for="changeAmount">Change (₱)</label>
                         <input type="number" id="changeAmount" step="0.01" min="0" value="0.00" readonly required>
                     </div>
 
                     <div class="form-group">
-                        <label for="paymentMethod">Payment Method</label>
+                        <label for="paymentMethod">Payment Method *</label>
                         <select id="paymentMethod" required>
                             <option value="Cash">Cash</option>
                             <option value="GCash">GCash</option>
@@ -157,8 +167,7 @@
                     </div>
 
                     <div class="form-group full-width">
-                        <label for="paymentStatus">Payment Status</label>
-                        <!-- Added all allowed options from your database check constraint -->
+                        <label for="paymentStatus">Payment Status *</label>
                         <select id="paymentStatus" required>
                             <option value="Paid">Paid</option>
                             <option value="Pending">Pending</option>
@@ -182,25 +191,50 @@
         let passengers = [];
 
         async function fetchAllData() {
-            payments = await DB.getAll('payments');
-            bookings = await DB.getAll('bookings');
-            passengers = await DB.getAll('passengers');
+            [payments, bookings, passengers] = await Promise.all([
+                DB.getAll('payments'),
+                DB.getAll('bookings'),
+                DB.getAll('passengers')
+            ]);
 
             populateBookingDropdown();
             renderPayments();
         }
 
+        function getCurrentLocalDateTime() {
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            return now.toISOString().slice(0, 16);
+        }
+
+        function toLocalDateTimeInput(isoString) {
+            if (!isoString) return getCurrentLocalDateTime();
+            const dt = new Date(isoString);
+            if (isNaN(dt.getTime())) return getCurrentLocalDateTime();
+            dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
+            return dt.toISOString().slice(0, 16);
+        }
+
         function populateBookingDropdown(currentBookingId = null) {
             const bookingSelect = document.getElementById("bookingId");
             bookingSelect.innerHTML = '<option value="">Select a Booking</option>';
-            
+
+            const currentPaymentId = Number(document.getElementById("paymentId").value);
             const paidBookingIds = payments
-                .filter(p => p.payment_id !== Number(document.getElementById("paymentId").value))
+                .filter(p => p.payment_id !== currentPaymentId && ['Paid', 'Pending'].includes(p.payment_status))
                 .map(p => p.booking_id);
 
             bookings.forEach(b => {
-                if (paidBookingIds.includes(b.booking_id) && b.booking_id !== currentBookingId) {
-                    return; 
+                const status = (b.booking_status || '').toLowerCase();
+
+                // Prevent payment for cancelled bookings & duplicate payments on already paid bookings
+                if (b.booking_id !== currentBookingId) {
+                    if (status === 'cancelled' || status === 'paid' || status === 'completed') {
+                        return;
+                    }
+                    if (paidBookingIds.includes(b.booking_id)) {
+                        return;
+                    }
                 }
 
                 const pass = passengers.find(p => p.passenger_id === b.passenger_id);
@@ -208,6 +242,7 @@
                 const opt = document.createElement("option");
                 opt.value = b.booking_id;
                 opt.dataset.fare = b.fare;
+                opt.dataset.passenger = passName;
                 opt.textContent = `${b.booking_number} - ${passName} (₱${Number(b.fare).toFixed(2)}) [${b.booking_status}]`;
                 bookingSelect.appendChild(opt);
             });
@@ -216,19 +251,80 @@
         function onBookingSelect() {
             const select = document.getElementById("bookingId");
             const selectedOpt = select.options[select.selectedIndex];
-            if (selectedOpt && selectedOpt.dataset.fare) {
-                const fare = Number(selectedOpt.dataset.fare);
+            if (selectedOpt && selectedOpt.value) {
+                const fare = Number(selectedOpt.dataset.fare || 0);
+                document.getElementById("passengerDisplay").value = selectedOpt.dataset.passenger || '';
                 document.getElementById("amountDue").value = fare.toFixed(2);
                 document.getElementById("amountPaid").value = fare.toFixed(2);
                 calculateChange();
+            } else {
+                document.getElementById("passengerDisplay").value = '';
+                document.getElementById("amountDue").value = '';
+                document.getElementById("amountPaid").value = '';
+                document.getElementById("changeAmount").value = '0.00';
             }
         }
 
+        // LAB 21: Automatically calculate change
         function calculateChange() {
             const due = Number(document.getElementById("amountDue").value || 0);
             const paid = Number(document.getElementById("amountPaid").value || 0);
             const change = Math.max(0, paid - due);
             document.getElementById("changeAmount").value = change.toFixed(2);
+        }
+
+        // LAB 21: Payment Validation Rules
+        function validatePayment(id, bookingId, due, paid, paymentStatus) {
+            if (!bookingId) {
+                alert("Validation Error: Please select a valid booking.");
+                return false;
+            }
+
+            const booking = bookings.find(b => b.booking_id === bookingId);
+            if (!booking) {
+                alert("Validation Error: Selected booking does not exist.");
+                return false;
+            }
+
+            // 1. Prevent payment for cancelled bookings
+            if ((booking.booking_status || '').toLowerCase() === 'cancelled') {
+                alert(`Validation Error: Booking ${booking.booking_number} is Cancelled and cannot accept payments.`);
+                return false;
+            }
+
+            // 2. Prevent duplicate payment
+            if (!id) {
+                if ((booking.booking_status || '').toLowerCase() === 'paid' || (booking.booking_status || '').toLowerCase() === 'completed') {
+                    alert(`Validation Error: Duplicate payment prevented. Booking ${booking.booking_number} is already marked as ${booking.booking_status}.`);
+                    return false;
+                }
+                const existingPayment = payments.find(p =>
+                    p.booking_id === bookingId && ['Paid', 'Pending'].includes(p.payment_status)
+                );
+                if (existingPayment) {
+                    alert(`Validation Error: Duplicate payment prevented. Payment #${existingPayment.payment_id} (${existingPayment.payment_status}) already exists for booking ${booking.booking_number}.`);
+                    return false;
+                }
+            }
+
+            // 3. Prevent negative or zero payment
+            if (isNaN(paid) || paid <= 0) {
+                alert("Validation Error: Negative or zero payment is not allowed. Please enter a valid positive amount.");
+                return false;
+            }
+            if (isNaN(due) || due <= 0) {
+                alert("Validation Error: Invalid amount due.");
+                return false;
+            }
+
+            // 4. Detect insufficient payment
+            if (paid < due) {
+                const shortfall = (due - paid).toFixed(2);
+                alert(`Validation Error: Insufficient payment. Amount due is ₱${due.toFixed(2)}, but only ₱${paid.toFixed(2)} was tendered (Short by ₱${shortfall}).`);
+                return false;
+            }
+
+            return true;
         }
 
         function renderPayments() {
@@ -244,7 +340,9 @@
                 const bookingNo = b.booking_number || '';
                 const method = p.payment_method || '';
 
-                const matchesSearch = [String(p.payment_id), bookingNo, passName, method].some(val => val.toLowerCase().includes(search));
+                const matchesSearch = [String(p.payment_id), bookingNo, passName, method].some(val =>
+                    val.toLowerCase().includes(search)
+                );
                 const matchesMethod = methodFilter === "" || p.payment_method === methodFilter;
                 const matchesStatus = statusFilter === "" || p.payment_status === statusFilter;
 
@@ -293,6 +391,9 @@
         function openPaymentForm() {
             document.getElementById("paymentForm").reset();
             document.getElementById("paymentId").value = "";
+            document.getElementById("passengerDisplay").value = "";
+            document.getElementById("changeAmount").value = "0.00";
+            document.getElementById("paymentDate").value = getCurrentLocalDateTime();
             document.getElementById("formTitle").textContent = "Process Payment";
             populateBookingDropdown();
             document.getElementById("paymentModal").style.display = "flex";
@@ -305,42 +406,44 @@
         document.getElementById("paymentForm").addEventListener("submit", async function(e) {
             e.preventDefault();
 
+            const id = document.getElementById("paymentId").value;
+            const bookingId = Number(document.getElementById("bookingId").value);
             const due = Number(document.getElementById("amountDue").value);
             const paid = Number(document.getElementById("amountPaid").value);
+            const paymentStatus = document.getElementById("paymentStatus").value;
+            const paymentDateRaw = document.getElementById("paymentDate").value;
 
-            if (paid < due) {
-                alert("Amount paid cannot be less than amount due.");
+            if (!validatePayment(id, bookingId, due, paid, paymentStatus)) {
                 return;
             }
 
-            const id = document.getElementById("paymentId").value;
-            const bookingId = Number(document.getElementById("bookingId").value);
+            const change = Number(Math.max(0, paid - due).toFixed(2));
             const payload = {
                 booking_id: bookingId,
                 amount_due: due,
                 amount_paid: paid,
-                change_amount: Number(document.getElementById("changeAmount").value),
+                change_amount: change,
                 payment_method: document.getElementById("paymentMethod").value,
-                payment_status: document.getElementById("paymentStatus").value
+                payment_date: paymentDateRaw ? new Date(paymentDateRaw).toISOString() : new Date().toISOString(),
+                payment_status: paymentStatus
             };
 
+            let result;
             if (id) {
-                await DB.update('payments', 'payment_id', id, payload);
+                result = await DB.update('payments', 'payment_id', id, payload);
             } else {
-                const existing = payments.find(p => p.booking_id === bookingId);
-                if (existing) {
-                    alert("A payment record for this booking already exists! Please edit the existing transaction instead.");
-                    return;
-                }
-
-                await DB.create('payments', payload);
-                if (payload.payment_status === 'Paid') {
-                    await DB.update('bookings', 'booking_id', bookingId, { booking_status: 'Confirmed' });
-                }
+                result = await DB.create('payments', payload);
             }
 
-            closePaymentForm();
-            fetchAllData();
+            if (result) {
+                // LAB 21: Mark booking as Paid after successful payment
+                if (payload.payment_status === 'Paid') {
+                    await DB.update('bookings', 'booking_id', bookingId, { booking_status: 'Paid' });
+                }
+                alert(`Payment processed successfully! Change: ₱${change.toFixed(2)}`);
+                closePaymentForm();
+                fetchAllData();
+            }
         });
 
         function editPayment(id) {
@@ -350,13 +453,19 @@
             document.getElementById("paymentId").value = p.payment_id;
             populateBookingDropdown(p.booking_id);
             document.getElementById("bookingId").value = p.booking_id;
-            document.getElementById("amountDue").value = p.amount_due;
-            document.getElementById("amountPaid").value = p.amount_paid;
-            document.getElementById("changeAmount").value = p.change_amount;
+
+            const b = bookings.find(item => item.booking_id === p.booking_id);
+            const pass = b ? passengers.find(item => item.passenger_id === b.passenger_id) : null;
+            document.getElementById("passengerDisplay").value = pass ? `${pass.first_name} ${pass.last_name}` : 'N/A';
+
+            document.getElementById("paymentDate").value = toLocalDateTimeInput(p.payment_date);
+            document.getElementById("amountDue").value = Number(p.amount_due).toFixed(2);
+            document.getElementById("amountPaid").value = Number(p.amount_paid).toFixed(2);
+            document.getElementById("changeAmount").value = Number(p.change_amount).toFixed(2);
             document.getElementById("paymentMethod").value = p.payment_method;
             document.getElementById("paymentStatus").value = p.payment_status;
 
-            document.getElementById("formTitle").textContent = "Edit Payment Status";
+            document.getElementById("formTitle").textContent = "Edit Payment Transaction";
             document.getElementById("paymentModal").style.display = "flex";
         }
 
@@ -370,4 +479,4 @@
         window.addEventListener('DOMContentLoaded', fetchAllData);
     </script>
 </body>
-</html> 
+</html>

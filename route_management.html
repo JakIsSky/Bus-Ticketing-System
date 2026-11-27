@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
     <head>
         <meta charset="UTF-8">
@@ -18,17 +19,17 @@
             </div>
 
             <nav>
-            <a href="index.html">▦ Dashboard</a>
-            <a href="bus_management.html">🚌 Buses</a>
-            <a href="route_management.html" class="active">⌖ Routes</a>
-            <a href="schedule_management.html">▦ Schedules</a>
-            <a href="passenger_management.html">♟ Passengers</a>
-            <a href="booking.html">▤ Bookings</a>
-            <a href="payment.html">▣ Payments</a>
-            <a href="ticket.html">▤ Tickets</a>
-            <a href="user.html">⚙ Users</a>
-            <a href="report.html">▥ Reports</a>
-        </nav>
+                <a href="index.html">▦ Dashboard</a>
+                <a href="bus_management.html">🚌 Buses</a>
+                <a href="route_management.html" class="active">⌖ Routes</a>
+                <a href="schedule_management.html">▦ Schedules</a>
+                <a href="passenger_management.html">♟ Passengers</a>
+                <a href="booking.html">▤ Bookings</a>
+                <a href="payment.html">▣ Payments</a>
+                <a href="ticket.html">▤ Tickets</a>
+                <a href="user.html">⚙ Users</a>
+                <a href="report.html">▥ Reports</a>
+            </nav>
         </aside>
 
         <main class="main-content">
@@ -42,7 +43,7 @@
                 <div class="page-heading">
                     <div>
                         <h2>Route List</h2>
-                        <p>Add and manage available travel routes.</p>
+                        <p>Add and manage available travel routes. Click a status badge or toggle button to quickly switch between Active and Inactive.</p>
                     </div>
                     <button class="add-btn" onclick="openForm()">
                         + Add New Route
@@ -184,6 +185,20 @@
                 renderRoutes();
             }
 
+            // QUICK STATUS TOGGLE (Active <-> Inactive)
+            async function quickToggleStatus(id) {
+                const route = routes.find(item => item.route_id === id);
+                if (!route) return;
+
+                const nextStatus = route.status === 'Active' ? 'Inactive' : 'Active';
+                const updated = await DB.update('routes', 'route_id', id, { status: nextStatus });
+
+                if (updated) {
+                    route.status = nextStatus;
+                    renderRoutes();
+                }
+            }
+
             function renderRoutes() {
                 const tbody = document.getElementById("routeTableBody");
                 const search = document.getElementById("searchInput").value.toLowerCase().trim();
@@ -224,15 +239,26 @@
                         row.appendChild(cell);
                     });
 
+                    // Clickable Status Badge for instant 1-click toggle
                     const statusCell = document.createElement("td");
                     const badge = document.createElement("span");
+                    const isActive = route.status === 'Active';
                     badge.className = "status " + (route.status || 'active').toLowerCase();
                     badge.textContent = route.status;
+                    badge.title = `Click to switch to ${isActive ? 'Inactive' : 'Active'}`;
+                    badge.style.cursor = "pointer";
+                    badge.onclick = () => quickToggleStatus(route.route_id);
                     statusCell.appendChild(badge);
                     row.appendChild(statusCell);
 
                     const actions = document.createElement("td");
                     actions.className = "actions";
+
+                    const toggleButton = document.createElement("button");
+                    toggleButton.textContent = isActive ? "Deactivate" : "Activate";
+                    toggleButton.style.background = isActive ? "#fef3c7" : "#dcfce7";
+                    toggleButton.style.color = isActive ? "#92400e" : "#166534";
+                    toggleButton.onclick = () => quickToggleStatus(route.route_id);
 
                     const editButton = document.createElement("button");
                     editButton.textContent = "Edit";
@@ -244,7 +270,7 @@
                     deleteButton.className = "delete-btn";
                     deleteButton.onclick = () => deleteRoute(route.route_id);
 
-                    actions.append(editButton, deleteButton);
+                    actions.append(toggleButton, editButton, deleteButton);
                     row.appendChild(actions);
                     tbody.appendChild(row);
                 });
@@ -295,13 +321,13 @@
                 if (id) {
                     result = await DB.update('routes', 'route_id', id, routePayload);
                 } else {
-                    result = await DB.insert('routes', routePayload); // Pushes new record to Supabase
+                    result = await DB.insert('routes', routePayload);
                 }
 
                 if (result) {
                     alert("Route saved successfully to Supabase!");
                     closeForm();
-                    fetchRoutes(); // Pulls fresh data back down
+                    fetchRoutes();
                 }
             });
 
@@ -340,3 +366,4 @@
 
     </body>
 </html>
+```[cite: 5]

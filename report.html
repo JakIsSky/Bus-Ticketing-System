@@ -36,12 +36,12 @@
         <header class="topbar">
             <div>
                 <h2>System Reports & Analytics</h2>
-                <p>View real-time operational summaries, ticket sales, and revenue generated from Supabase.</p>
+                <p>Daily operations, booking manifests, ticket revenue, and bus/route performance analytics.</p>
             </div>
         </header>
 
         <section class="content">
-            <!-- Executive Metrics -->
+            <!-- Top Executive Metrics -->
             <div class="summary-cards">
                 <div class="summary-card">
                     <p>Total Revenue Collected</p>
@@ -61,30 +61,67 @@
                 </div>
             </div>
 
-            <!-- Report Toolbar & Switcher -->
+            <!-- Report Switcher & Dynamic Filters -->
             <div class="table-container">
                 <div class="table-toolbar">
                     <select id="reportTypeSelect" onchange="switchReportType()">
-                        <option value="revenue">Revenue & Sales Report</option>
-                        <option value="occupancy">Schedule Occupancy Report</option>
-                        <option value="tickets">Ticket Log Manifest</option>
+                        <option value="daily_trip">Lab 26: Daily Trip Report</option>
+                        <option value="booking_report">Lab 27: Booking Report</option>
+                        <option value="revenue_report">Lab 28: Revenue Report</option>
+                        <option value="performance_report">Lab 29: Bus & Route Performance Report</option>
                     </select>
-                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                        <input type="date" id="startDateFilter" onchange="loadReportData()" aria-label="Start Date">
-                        <input type="date" id="endDateFilter" onchange="loadReportData()" aria-label="End Date">
-                        <button class="add-btn" onclick="exportToCSV()">📥 Export Report (CSV)</button>
-                    </div>
+
+                    <input type="date" id="dateFilter" onchange="renderCurrentReport()" aria-label="Filter Date">
+
+                    <select id="routeFilter" onchange="renderCurrentReport()">
+                        <option value="">All Routes</option>
+                    </select>
+
+                    <select id="scheduleFilter" onchange="renderCurrentReport()">
+                        <option value="">All Schedules</option>
+                    </select>
+
+                    <select id="bookingStatusFilter" onchange="renderCurrentReport()">
+                        <option value="">All Booking Status</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Confirmed">Confirmed</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
+
+                    <button type="button" class="cancel-btn" onclick="resetReportFilters()">Reset Filters</button>
+                    <button type="button" class="add-btn" onclick="exportToCSV()">📥 Export Report (CSV)</button>
                 </div>
 
-                <!-- Table Content -->
+                <!-- Dynamic KPI Sub-Cards (Used by Lab 28 Revenue Periods & Lab 29 Top/Bottom Performers) -->
+                <div id="reportSubCards" class="cards-4 dashboard-section"></div>
+
+                <!-- Primary Report Table -->
+                <div class="section-label">
+                    <span id="primaryTableTitle">Report Details</span>
+                </div>
                 <div class="table-scroll">
-                    <table>
+                    <table id="primaryReportTable">
                         <thead id="reportTableHeader"></thead>
                         <tbody id="reportTableBody"></tbody>
                     </table>
                 </div>
 
-                <p id="emptyReportMessage" class="empty-message" style="display:none;">No data available for the selected report filters.</p>
+                <p id="emptyReportMessage" class="empty-message">No records found for the selected report filters.</p>
+
+                <!-- Secondary Report Table (Used by Lab 28 Revenue by Bus & Lab 29 Route Performance Breakdown) -->
+                <div id="secondaryReportSection" class="dashboard-section">
+                    <div class="section-label">
+                        <span id="secondaryTableTitle">Secondary Breakdown</span>
+                    </div>
+                    <div class="table-scroll">
+                        <table id="secondaryReportTable">
+                            <thead id="secondaryTableHeader"></thead>
+                            <tbody id="secondaryTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </section>
     </main>
@@ -98,197 +135,726 @@
         let buses = [];
         let passengers = [];
 
-        // Fetch all relational data from Supabase
-        async function loadReportData() {
-            payments = await DB.getAll('payments');
-            bookings = await DB.getAll('bookings');
-            tickets = await DB.getAll('tickets');
-            schedules = await DB.getAll('schedules');
-            routes = await DB.getAll('routes');
-            buses = await DB.getAll('buses');
-            passengers = await DB.getAll('passengers');
+        function getTodayLocalISO() {
+            const now = new Date();
+            const offsetMs = now.getTimezoneOffset() * 60000;
+            return new Date(now.getTime() - offsetMs).toISOString().slice(0, 10);
+        }
 
-            updateSummaryCards();
+        async function loadReportData() {
+            [payments, bookings, tickets, schedules, routes, buses, passengers] = await Promise.all([
+                DB.getAll('payments'),
+                DB.getAll('bookings'),
+                DB.getAll('tickets'),
+                DB.getAll('schedules'),
+                DB.getAll('routes'),
+                DB.getAll('buses'),
+                DB.getAll('passengers')
+            ]);
+
+            populateFilterDropdowns();
+            updateExecutiveCards();
+
+            // Default Daily Trip Report to today's date if trips exist today, else show all
+            const today = getTodayLocalISO();
+            if (schedules.some(s => s.departure_date === today)) {
+                document.getElementById('dateFilter').value = today;
+            }
+
             switchReportType();
         }
 
-        // Calculate and render executive metrics
-        function updateSummaryCards() {
+        function populateFilterDropdowns() {
+            const routeSel = document.getElementById('routeFilter');
+            const schedSel = document.getElementById('scheduleFilter');
+            const prevRoute = routeSel.value;
+            const prevSched = schedSel.value;
+
+            routeSel.innerHTML = '<option value="">All Routes</option>';
+            routes.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r.route_id;
+                opt.textContent = `${r.route_code ? r.route_code + ': ' : ''}${r.origin}–${r.destination}`;
+                routeSel.appendChild(opt);
+            });
+
+            schedSel.innerHTML = '<option value="">All Schedules</option>';
+            schedules.forEach(s => {
+                const r = routes.find(rt => rt.route_id === s.route_id) || {};
+                const routeName = r.origin ? `${r.origin}–${r.destination}` : `Route #${s.route_id}`;
+                const opt = document.createElement('option');
+                opt.value = s.schedule_id;
+                opt.textContent = `#${s.schedule_id} | ${routeName} (${s.departure_date} ${s.departure_time || ''})`;
+                schedSel.appendChild(opt);
+            });
+
+            if (prevRoute) routeSel.value = prevRoute;
+            if (prevSched) schedSel.value = prevSched;
+        }
+
+        function updateExecutiveCards() {
             const revenueSum = payments
                 .filter(p => p.payment_status === 'Paid')
-                .reduce((acc, curr) => acc + Number(curr.amount_paid || 0) - Number(curr.change_amount || 0), 0);
+                .reduce((acc, curr) => acc + Math.max(0, Number(curr.amount_paid || 0) - Number(curr.change_amount || 0)), 0);
 
-            const paidCount = bookings.filter(b => b.booking_status === 'Paid' || b.booking_status === 'Confirmed').length;
-            const validTickets = tickets.filter(t => t.ticket_status === 'Valid' || t.ticket_status === 'Used').length;
+            const paidCount = bookings.filter(b =>
+                ['Paid', 'Confirmed', 'Completed'].includes(b.booking_status)
+            ).length;
+
+            const validTickets = tickets.filter(t => ['Valid', 'Used'].includes(t.ticket_status)).length;
             const activeRoutesCount = routes.filter(r => r.status === 'Active').length;
 
-            document.getElementById('totalRevenue').textContent = '₱' + revenueSum.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('totalRevenue').textContent = formatPeso(revenueSum);
             document.getElementById('totalPaidBookings').textContent = paidCount;
             document.getElementById('totalIssuedTickets').textContent = validTickets;
             document.getElementById('totalActiveRoutes').textContent = activeRoutesCount;
         }
 
-        // Switch between dynamic report table layouts
+        function formatPeso(amount) {
+            return '₱' + Number(amount || 0).toLocaleString('en-PH', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        function resetReportFilters() {
+            document.getElementById('dateFilter').value = '';
+            document.getElementById('routeFilter').value = '';
+            document.getElementById('scheduleFilter').value = '';
+            document.getElementById('bookingStatusFilter').value = '';
+            renderCurrentReport();
+        }
+
         function switchReportType() {
             const type = document.getElementById('reportTypeSelect').value;
+            const dateEl = document.getElementById('dateFilter');
+            const routeEl = document.getElementById('routeFilter');
+            const schedEl = document.getElementById('scheduleFilter');
+            const statusEl = document.getElementById('bookingStatusFilter');
+
+            // Configure relevant filters per lab activity
+            dateEl.style.display = (type === 'performance_report') ? 'none' : 'inline-block';
+            routeEl.style.display = (type === 'daily_trip' || type === 'booking_report') ? 'inline-block' : 'none';
+            schedEl.style.display = (type === 'booking_report') ? 'inline-block' : 'none';
+            statusEl.style.display = (type === 'booking_report') ? 'inline-block' : 'none';
+
+            if (type === 'daily_trip' && !dateEl.value) {
+                const today = getTodayLocalISO();
+                if (schedules.some(s => s.departure_date === today)) {
+                    dateEl.value = today;
+                }
+            }
+
+            renderCurrentReport();
+        }
+
+        function renderCurrentReport() {
+            const type = document.getElementById('reportTypeSelect').value;
+            document.getElementById('reportSubCards').innerHTML = '';
+            document.getElementById('secondaryReportSection').style.display = 'none';
+
+            if (type === 'daily_trip') {
+                renderDailyTripReport();
+            } else if (type === 'booking_report') {
+                renderBookingReport();
+            } else if (type === 'revenue_report') {
+                renderRevenueReport();
+            } else if (type === 'performance_report') {
+                renderPerformanceReport();
+            }
+        }
+
+        /* =========================================================================
+           LABORATORY ACTIVITY 26: DAILY TRIP REPORT
+           Contents: Schedule, Bus, Route, Departure time, Number of passengers,
+                     Available seats, Occupied seats, Trip status
+        ========================================================================= */
+        function renderDailyTripReport() {
+            const selectedDate = document.getElementById('dateFilter').value;
+            const selectedRoute = document.getElementById('routeFilter').value;
+
+            document.getElementById('primaryTableTitle').textContent = selectedDate
+                ? `Daily Trip Operations (${selectedDate})`
+                : 'Daily Trip Operations (All Dates)';
+
             const thead = document.getElementById('reportTableHeader');
             const tbody = document.getElementById('reportTableBody');
 
-            thead.innerHTML = '';
-            tbody.innerHTML = '';
+            thead.innerHTML = `
+                <tr>
+                    <th>Schedule</th>
+                    <th>Bus</th>
+                    <th>Route</th>
+                    <th>Departure Date</th>
+                    <th>Departure Time</th>
+                    <th>Number of Passengers</th>
+                    <th>Available Seats</th>
+                    <th>Occupied Seats</th>
+                    <th>Trip Status</th>
+                </tr>
+            `;
 
-            if (type === 'revenue') {
-                thead.innerHTML = `
-                    <tr>
-                        <th>Payment ID</th>
-                        <th>Booking No.</th>
-                        <th>Passenger</th>
-                        <th>Payment Date</th>
-                        <th>Amount Due</th>
-                        <th>Amount Paid</th>
-                        <th>Method</th>
-                        <th>Status</th>
-                    </tr>
+            const filteredSchedules = schedules.filter(s => {
+                const matchDate = !selectedDate || s.departure_date === selectedDate;
+                const matchRoute = !selectedRoute || String(s.route_id) === String(selectedRoute);
+                return matchDate && matchRoute;
+            });
+
+            tbody.innerHTML = '';
+            filteredSchedules.forEach(s => {
+                const bus = buses.find(b => b.bus_id === s.bus_id) || {};
+                const route = routes.find(r => r.route_id === s.route_id) || {};
+
+                const activeBookings = bookings.filter(
+                    b => b.schedule_id === s.schedule_id && b.booking_status !== 'Cancelled'
+                );
+
+                const capacity = Number(bus.capacity || bus.seating_capacity || 40);
+                const occupiedSeats = activeBookings.length;
+                const availableSeats = s.available_seats !== undefined && s.available_seats !== null
+                    ? Number(s.available_seats)
+                    : Math.max(0, capacity - occupiedSeats);
+
+                const schedLabel = s.schedule_code
+                    ? `${s.schedule_code} (#${s.schedule_id})`
+                    : `SCH-${String(s.schedule_id).padStart(3, '0')}`;
+                const busLabel = bus.bus_number
+                    ? `${bus.bus_number}${bus.bus_type ? ' (' + bus.bus_type + ')' : ''}`
+                    : `Bus #${s.bus_id}`;
+                const routeLabel = route.origin
+                    ? `${route.origin}–${route.destination}`
+                    : `Route #${s.route_id}`;
+                const tripStatus = s.schedule_status || 'Scheduled';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${schedLabel}</strong></td>
+                    <td>${busLabel}</td>
+                    <td>${routeLabel}</td>
+                    <td>${s.departure_date || 'N/A'}</td>
+                    <td>${s.departure_time || 'N/A'}</td>
+                    <td><strong>${occupiedSeats}</strong></td>
+                    <td>${availableSeats} / ${capacity}</td>
+                    <td>${occupiedSeats}</td>
+                    <td><span class="status ${tripStatus.toLowerCase()}">${tripStatus}</span></td>
                 `;
-                renderRevenueReport();
-            } else if (type === 'occupancy') {
-                thead.innerHTML = `
-                    <tr>
-                        <th>Schedule ID</th>
-                        <th>Schedule Code</th>
-                        <th>Bus</th>
-                        <th>Route</th>
-                        <th>Departure Date</th>
-                        <th>Departure Time</th>
-                        <th>Available Seats</th>
-                        <th>Status</th>
-                    </tr>
-                `;
-                renderOccupancyReport();
-            } else if (type === 'tickets') {
-                thead.innerHTML = `
-                    <tr>
-                        <th>Ticket ID</th>
-                        <th>Ticket Number</th>
-                        <th>Booking No.</th>
-                        <th>Passenger</th>
-                        <th>Seat Number</th>
-                        <th>Issue Date</th>
-                        <th>Status</th>
-                    </tr>
-                `;
-                renderTicketsReport();
-            }
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('emptyReportMessage').style.display =
+                filteredSchedules.length === 0 ? 'block' : 'none';
         }
 
-        // Render Sales & Revenue Report
+        /* =========================================================================
+           LABORATORY ACTIVITY 27: BOOKING REPORT
+           Contents: Booking number, Passenger, Route, Schedule, Seat number,
+                     Fare, Payment status, Booking status
+           Filters:  Date, Route, Schedule, Booking status
+        ========================================================================= */
+        function renderBookingReport() {
+            const selectedDate = document.getElementById('dateFilter').value;
+            const selectedRoute = document.getElementById('routeFilter').value;
+            const selectedSchedule = document.getElementById('scheduleFilter').value;
+            const selectedStatus = document.getElementById('bookingStatusFilter').value;
+
+            document.getElementById('primaryTableTitle').textContent = 'Complete Booking Report';
+
+            const thead = document.getElementById('reportTableHeader');
+            const tbody = document.getElementById('reportTableBody');
+
+            thead.innerHTML = `
+                <tr>
+                    <th>Booking Number</th>
+                    <th>Passenger</th>
+                    <th>Route</th>
+                    <th>Schedule</th>
+                    <th>Seat Number</th>
+                    <th>Fare</th>
+                    <th>Payment Status</th>
+                    <th>Booking Status</th>
+                </tr>
+            `;
+
+            const filteredBookings = bookings.filter(b => {
+                const sched = schedules.find(s => s.schedule_id === b.schedule_id) || {};
+                const bookingDate = sched.departure_date || (b.booking_date ? b.booking_date.slice(0, 10) : '');
+
+                const matchDate = !selectedDate || bookingDate === selectedDate;
+                const matchRoute = !selectedRoute || String(sched.route_id) === String(selectedRoute);
+                const matchSchedule = !selectedSchedule || String(b.schedule_id) === String(selectedSchedule);
+                const matchStatus = !selectedStatus || (b.booking_status || '').toLowerCase() === selectedStatus.toLowerCase();
+
+                return matchDate && matchRoute && matchSchedule && matchStatus;
+            });
+
+            tbody.innerHTML = '';
+            filteredBookings.forEach(b => {
+                const pass = passengers.find(p => p.passenger_id === b.passenger_id) || {};
+                const sched = schedules.find(s => s.schedule_id === b.schedule_id) || {};
+                const route = routes.find(r => r.route_id === sched.route_id) || {};
+                const pay = payments.find(p => p.booking_id === b.booking_id) || {};
+
+                const passengerName = pass.first_name
+                    ? `${pass.first_name} ${pass.last_name}`
+                    : `Passenger #${b.passenger_id}`;
+                const routeLabel = route.origin
+                    ? `${route.origin}–${route.destination}`
+                    : 'N/A';
+                const schedLabel = sched.departure_date
+                    ? `#${sched.schedule_id} (${sched.departure_date} ${sched.departure_time || ''})`
+                    : `Schedule #${b.schedule_id}`;
+
+                const paymentStatus = pay.payment_status
+                    || (['Paid', 'Completed'].includes(b.booking_status) ? 'Paid' : 'Pending');
+                const bookingStatus = b.booking_status || 'Pending';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${b.booking_number || 'BK-' + b.booking_id}</strong></td>
+                    <td>${passengerName}</td>
+                    <td>${routeLabel}</td>
+                    <td>${schedLabel}</td>
+                    <td><strong>${b.seat_number || 'N/A'}</strong></td>
+                    <td>${formatPeso(b.fare)}</td>
+                    <td><span class="status ${paymentStatus.toLowerCase()}">${paymentStatus}</span></td>
+                    <td><span class="status ${bookingStatus.toLowerCase()}">${bookingStatus}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('emptyReportMessage').style.display =
+                filteredBookings.length === 0 ? 'block' : 'none';
+        }
+
+        /* =========================================================================
+           LABORATORY ACTIVITY 28: REVENUE REPORT
+           Generate: Daily revenue, Weekly revenue, Monthly revenue, Annual revenue,
+                     Revenue by route, Revenue by bus
+        ========================================================================= */
         function renderRevenueReport() {
-            const tbody = document.getElementById('reportTableBody');
-            tbody.innerHTML = '';
+            const selectedDate = document.getElementById('dateFilter').value;
+            const refDate = selectedDate ? new Date(selectedDate + 'T00:00:00') : new Date();
+            const refISO = getDateISO(refDate);
 
-            if (payments.length === 0) {
-                document.getElementById('emptyReportMessage').style.display = 'block';
-                return;
-            }
-            document.getElementById('emptyReportMessage').style.display = 'none';
+            // Calculate start of week (Sunday), month, and year relative to refDate
+            const startOfWeek = new Date(refDate);
+            startOfWeek.setDate(refDate.getDate() - refDate.getDay());
+            startOfWeek.setHours(0, 0, 0, 0);
 
-            payments.forEach(p => {
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            endOfWeek.setHours(23, 59, 59, 999);
+
+            const refYear = refDate.getFullYear();
+            const refMonth = refDate.getMonth();
+
+            let dailyRev = 0;
+            let weeklyRev = 0;
+            let monthlyRev = 0;
+            let annualRev = 0;
+
+            const paidPayments = payments.filter(p => p.payment_status === 'Paid');
+
+            paidPayments.forEach(p => {
+                const netAmount = Math.max(0, Number(p.amount_paid || 0) - Number(p.change_amount || 0));
                 const b = bookings.find(item => item.booking_id === p.booking_id) || {};
-                const pass = passengers.find(item => item.passenger_id === b.passenger_id) || {};
-                const passName = pass.first_name ? `${pass.first_name} ${pass.last_name}` : 'N/A';
+                const s = schedules.find(item => item.schedule_id === b.schedule_id) || {};
+                const rawDate = p.payment_date || b.booking_date || s.departure_date;
+                if (!rawDate) return;
 
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${p.payment_id}</td>
-                    <td><strong>${b.booking_number || 'N/A'}</strong></td>
-                    <td>${passName}</td>
-                    <td>${p.payment_date ? new Date(p.payment_date).toLocaleString('en-PH') : 'N/A'}</td>
-                    <td>₱${Number(p.amount_due || 0).toFixed(2)}</td>
-                    <td>₱${Number(p.amount_paid || 0).toFixed(2)}</td>
-                    <td>${p.payment_method || 'Cash'}</td>
-                    <td><span class="status ${(p.payment_status || '').toLowerCase()}">${p.payment_status}</span></td>
-                `;
-                tbody.appendChild(tr);
+                const d = new Date(rawDate);
+                if (isNaN(d.getTime())) return;
+
+                if (getDateISO(d) === refISO) dailyRev += netAmount;
+                if (d >= startOfWeek && d <= endOfWeek) weeklyRev += netAmount;
+                if (d.getFullYear() === refYear && d.getMonth() === refMonth) monthlyRev += netAmount;
+                if (d.getFullYear() === refYear) annualRev += netAmount;
             });
-        }
 
-        // Render Schedule Occupancy Report
-        function renderOccupancyReport() {
+            // Render Period Revenue Cards
+            document.getElementById('reportSubCards').innerHTML = `
+                <div class="metric-card">
+                    <p>Daily Revenue (${refISO})</p>
+                    <h3>${formatPeso(dailyRev)}</h3>
+                </div>
+                <div class="metric-card">
+                    <p>Weekly Revenue</p>
+                    <h3>${formatPeso(weeklyRev)}</h3>
+                </div>
+                <div class="metric-card">
+                    <p>Monthly Revenue (${refDate.toLocaleString('en-US', { month: 'short', year: 'numeric' })})</p>
+                    <h3>${formatPeso(monthlyRev)}</h3>
+                </div>
+                <div class="metric-card">
+                    <p>Annual Revenue (${refYear})</p>
+                    <h3>${formatPeso(annualRev)}</h3>
+                </div>
+            `;
+
+            // Filter paid transactions by selectedDate if user picked a specific date
+            const scopedPayments = selectedDate
+                ? paidPayments.filter(p => {
+                    const b = bookings.find(item => item.booking_id === p.booking_id) || {};
+                    const rawDate = p.payment_date || b.booking_date;
+                    return rawDate && getDateISO(new Date(rawDate)) === selectedDate;
+                })
+                : paidPayments;
+
+            // 1. Revenue by Route
+            document.getElementById('primaryTableTitle').textContent = 'Revenue by Route';
+            const thead = document.getElementById('reportTableHeader');
             const tbody = document.getElementById('reportTableBody');
+
+            thead.innerHTML = `
+                <tr>
+                    <th>Route</th>
+                    <th>Passengers</th>
+                    <th>Revenue</th>
+                </tr>
+            `;
+
+            const routeStats = routes.map(r => {
+                let passengerCount = 0;
+                let revenue = 0;
+
+                scopedPayments.forEach(p => {
+                    const b = bookings.find(item => item.booking_id === p.booking_id);
+                    if (!b) return;
+                    const s = schedules.find(item => item.schedule_id === b.schedule_id);
+                    if (s && s.route_id === r.route_id) {
+                        passengerCount += 1;
+                        revenue += Math.max(0, Number(p.amount_paid || 0) - Number(p.change_amount || 0));
+                    }
+                });
+
+                return {
+                    routeName: `${r.origin}–${r.destination}`,
+                    passengers: passengerCount,
+                    revenue
+                };
+            }).sort((a, b) => b.revenue - a.revenue);
+
             tbody.innerHTML = '';
-
-            if (schedules.length === 0) {
-                document.getElementById('emptyReportMessage').style.display = 'block';
-                return;
-            }
-            document.getElementById('emptyReportMessage').style.display = 'none';
-
-            schedules.forEach(s => {
-                const b = buses.find(item => item.bus_id === s.bus_id) || {};
-                const r = routes.find(item => item.route_id === s.route_id) || {};
-                const statusVal = s.schedule_status || 'Scheduled';
-
+            routeStats.forEach(item => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${s.schedule_id}</td>
-                    <td><strong>${s.schedule_code || 'N/A'}</strong></td>
-                    <td>${b.bus_number || 'N/A'} (${b.bus_type || ''})</td>
-                    <td>${r.origin || ''} ➔ ${r.destination || ''}</td>
-                    <td>${s.departure_date}</td>
-                    <td>${s.departure_time}</td>
-                    <td>${s.available_seats} / ${b.seating_capacity || 40}</td>
-                    <td><span class="status ${statusVal.toLowerCase()}">${statusVal}</span></td>
+                    <td><strong>${item.routeName}</strong></td>
+                    <td>${item.passengers}</td>
+                    <td><strong>${formatPeso(item.revenue)}</strong></td>
                 `;
                 tbody.appendChild(tr);
             });
+
+            document.getElementById('emptyReportMessage').style.display =
+                routeStats.length === 0 ? 'block' : 'none';
+
+            // 2. Revenue by Bus
+            document.getElementById('secondaryReportSection').style.display = 'block';
+            document.getElementById('secondaryTableTitle').textContent = 'Revenue by Bus';
+            const secHead = document.getElementById('secondaryTableHeader');
+            const secBody = document.getElementById('secondaryTableBody');
+
+            secHead.innerHTML = `
+                <tr>
+                    <th>Bus Number</th>
+                    <th>Bus Type</th>
+                    <th>Passengers</th>
+                    <th>Revenue</th>
+                </tr>
+            `;
+
+            const busStats = buses.map(bus => {
+                let passengerCount = 0;
+                let revenue = 0;
+
+                scopedPayments.forEach(p => {
+                    const b = bookings.find(item => item.booking_id === p.booking_id);
+                    if (!b) return;
+                    const s = schedules.find(item => item.schedule_id === b.schedule_id);
+                    if (s && s.bus_id === bus.bus_id) {
+                        passengerCount += 1;
+                        revenue += Math.max(0, Number(p.amount_paid || 0) - Number(p.change_amount || 0));
+                    }
+                });
+
+                return {
+                    busNumber: bus.bus_number,
+                    busType: bus.bus_type || 'Standard',
+                    passengers: passengerCount,
+                    revenue
+                };
+            }).sort((a, b) => b.revenue - a.revenue);
+
+            secBody.innerHTML = '';
+            busStats.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${item.busNumber}</strong></td>
+                    <td>${item.busType}</td>
+                    <td>${item.passengers}</td>
+                    <td><strong>${formatPeso(item.revenue)}</strong></td>
+                `;
+                secBody.appendChild(tr);
+            });
         }
 
-        // Render Ticket Manifest Log Report
-        function renderTicketsReport() {
+        function getDateISO(dateObj) {
+            if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) return '';
+            const offsetMs = dateObj.getTimezoneOffset() * 60000;
+            return new Date(dateObj.getTime() - offsetMs).toISOString().slice(0, 10);
+        }
+
+        /* =========================================================================
+           LABORATORY ACTIVITY 29: BUS AND ROUTE PERFORMANCE REPORTS
+           Generate: Most utilized buses, Least utilized buses,
+                     Most popular routes, Least popular routes,
+                     Passenger volume, Average occupancy,
+                     Cancelled bookings, No-show passengers
+        ========================================================================= */
+        function renderPerformanceReport() {
+            const now = new Date();
+
+            // 1. Evaluate Bus Performance
+            const busMetrics = buses.map(bus => {
+                const busSchedules = schedules.filter(s => s.bus_id === bus.bus_id);
+                const capacity = Number(bus.capacity || bus.seating_capacity || 40);
+                let totalPassengers = 0;
+                let totalCancelled = 0;
+                let totalNoShows = 0;
+                let occupancySum = 0;
+
+                busSchedules.forEach(s => {
+                    const schedBookings = bookings.filter(b => b.schedule_id === s.schedule_id);
+                    const active = schedBookings.filter(b => b.booking_status !== 'Cancelled');
+                    const cancelled = schedBookings.filter(b => b.booking_status === 'Cancelled');
+
+                    totalPassengers += active.length;
+                    totalCancelled += cancelled.length;
+                    occupancySum += capacity > 0 ? (active.length / capacity) * 100 : 0;
+
+                    // Count No-Show passengers (ticket still 'Valid' after departure time passed)
+                    const depDateTime = new Date(`${s.departure_date}T${s.departure_time || '23:59:59'}`);
+                    if (!isNaN(depDateTime.getTime()) && depDateTime < now) {
+                        active.forEach(b => {
+                            const t = tickets.find(tk => tk.booking_id === b.booking_id);
+                            if (t && t.ticket_status === 'Valid') {
+                                totalNoShows += 1;
+                            }
+                        });
+                    }
+                });
+
+                const avgOccupancy = busSchedules.length > 0
+                    ? occupancySum / busSchedules.length
+                    : 0;
+
+                return {
+                    busNumber: bus.bus_number,
+                    busType: bus.bus_type || 'Standard',
+                    tripsCount: busSchedules.length,
+                    passengerVolume: totalPassengers,
+                    avgOccupancy,
+                    cancelledBookings: totalCancelled,
+                    noShowPassengers: totalNoShows
+                };
+            }).sort((a, b) => b.avgOccupancy - a.avgOccupancy || b.passengerVolume - a.passengerVolume);
+
+            // 2. Evaluate Route Performance
+            const routeMetrics = routes.map(route => {
+                const routeSchedules = schedules.filter(s => s.route_id === route.route_id);
+                let totalPassengers = 0;
+                let totalCancelled = 0;
+                let totalNoShows = 0;
+                let occupancySum = 0;
+
+                routeSchedules.forEach(s => {
+                    const bus = buses.find(b => b.bus_id === s.bus_id) || {};
+                    const capacity = Number(bus.capacity || bus.seating_capacity || 40);
+                    const schedBookings = bookings.filter(b => b.schedule_id === s.schedule_id);
+                    const active = schedBookings.filter(b => b.booking_status !== 'Cancelled');
+                    const cancelled = schedBookings.filter(b => b.booking_status === 'Cancelled');
+
+                    totalPassengers += active.length;
+                    totalCancelled += cancelled.length;
+                    occupancySum += capacity > 0 ? (active.length / capacity) * 100 : 0;
+
+                    const depDateTime = new Date(`${s.departure_date}T${s.departure_time || '23:59:59'}`);
+                    if (!isNaN(depDateTime.getTime()) && depDateTime < now) {
+                        active.forEach(b => {
+                            const t = tickets.find(tk => tk.booking_id === b.booking_id);
+                            if (t && t.ticket_status === 'Valid') {
+                                totalNoShows += 1;
+                            }
+                        });
+                    }
+                });
+
+                const avgOccupancy = routeSchedules.length > 0
+                    ? occupancySum / routeSchedules.length
+                    : 0;
+
+                return {
+                    routeName: `${route.origin}–${route.destination}`,
+                    routeCode: route.route_code || 'N/A',
+                    tripsCount: routeSchedules.length,
+                    passengerVolume: totalPassengers,
+                    avgOccupancy,
+                    cancelledBookings: totalCancelled,
+                    noShowPassengers: totalNoShows
+                };
+            }).sort((a, b) => b.passengerVolume - a.passengerVolume || b.avgOccupancy - a.avgOccupancy);
+
+            const mostUtilizedBus = busMetrics[0];
+            const leastUtilizedBus = busMetrics[busMetrics.length - 1];
+            const mostPopularRoute = routeMetrics[0];
+            const leastPopularRoute = routeMetrics[routeMetrics.length - 1];
+
+            document.getElementById('reportSubCards').innerHTML = `
+                <div class="metric-card">
+                    <p>Most Utilized Bus</p>
+                    <h3>${mostUtilizedBus ? `${mostUtilizedBus.busNumber} (${mostUtilizedBus.avgOccupancy.toFixed(1)}%)` : 'N/A'}</h3>
+                </div>
+                <div class="metric-card">
+                    <p>Least Utilized Bus</p>
+                    <h3>${leastUtilizedBus ? `${leastUtilizedBus.busNumber} (${leastUtilizedBus.avgOccupancy.toFixed(1)}%)` : 'N/A'}</h3>
+                </div>
+                <div class="metric-card">
+                    <p>Most Popular Route</p>
+                    <h3>${mostPopularRoute ? `${mostPopularRoute.routeName} (${mostPopularRoute.passengerVolume} pax)` : 'N/A'}</h3>
+                </div>
+                <div class="metric-card">
+                    <p>Least Popular Route</p>
+                    <h3>${leastPopularRoute ? `${leastPopularRoute.routeName} (${leastPopularRoute.passengerVolume} pax)` : 'N/A'}</h3>
+                </div>
+            `;
+
+            // Primary Table: Bus Utilization Performance
+            document.getElementById('primaryTableTitle').textContent = 'Bus Utilization & Performance (Ranked Most to Least Utilized)';
+            const thead = document.getElementById('reportTableHeader');
             const tbody = document.getElementById('reportTableBody');
+
+            thead.innerHTML = `
+                <tr>
+                    <th>Rank</th>
+                    <th>Bus Number</th>
+                    <th>Bus Type</th>
+                    <th>Scheduled Trips</th>
+                    <th>Passenger Volume</th>
+                    <th>Average Occupancy</th>
+                    <th>Cancelled Bookings</th>
+                    <th>No-Show Passengers</th>
+                    <th>Utilization Tier</th>
+                </tr>
+            `;
+
             tbody.innerHTML = '';
-
-            if (tickets.length === 0) {
-                document.getElementById('emptyReportMessage').style.display = 'block';
-                return;
-            }
-            document.getElementById('emptyReportMessage').style.display = 'none';
-
-            tickets.forEach(t => {
-                const b = bookings.find(item => item.booking_id === t.booking_id) || {};
-                const pass = passengers.find(item => item.passenger_id === b.passenger_id) || {};
+            busMetrics.forEach((b, idx) => {
+                let tierLabel = 'Moderate';
+                let tierClass = 'scheduled';
+                if (idx === 0 && b.passengerVolume > 0) {
+                    tierLabel = 'Most Utilized';
+                    tierClass = 'active';
+                } else if (idx === busMetrics.length - 1 && busMetrics.length > 1) {
+                    tierLabel = 'Least Utilized';
+                    tierClass = 'pending';
+                }
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${t.ticket_id}</td>
-                    <td><strong>${t.ticket_number}</strong></td>
-                    <td>${b.booking_number || 'N/A'}</td>
-                    <td>${pass.first_name ? `${pass.first_name} ${pass.last_name}` : 'N/A'}</td>
-                    <td>${t.seat_number}</td>
-                    <td>${t.issue_date ? new Date(t.issue_date).toLocaleDateString('en-PH') : 'N/A'}</td>
-                    <td><span class="status ${(t.ticket_status || '').toLowerCase()}">${t.ticket_status}</span></td>
+                    <td>#${idx + 1}</td>
+                    <td><strong>${b.busNumber}</strong></td>
+                    <td>${b.busType}</td>
+                    <td>${b.tripsCount}</td>
+                    <td><strong>${b.passengerVolume}</strong></td>
+                    <td>${b.avgOccupancy.toFixed(1)}%</td>
+                    <td>${b.cancelledBookings}</td>
+                    <td>${b.noShowPassengers}</td>
+                    <td><span class="status ${tierClass}">${tierLabel}</span></td>
                 `;
                 tbody.appendChild(tr);
             });
+
+            document.getElementById('emptyReportMessage').style.display =
+                busMetrics.length === 0 ? 'block' : 'none';
+
+            // Secondary Table: Route Popularity & Performance
+            document.getElementById('secondaryReportSection').style.display = 'block';
+            document.getElementById('secondaryTableTitle').textContent = 'Route Popularity & Performance (Ranked Most to Least Popular)';
+            const secHead = document.getElementById('secondaryTableHeader');
+            const secBody = document.getElementById('secondaryTableBody');
+
+            secHead.innerHTML = `
+                <tr>
+                    <th>Rank</th>
+                    <th>Route</th>
+                    <th>Route Code</th>
+                    <th>Scheduled Trips</th>
+                    <th>Passenger Volume</th>
+                    <th>Average Occupancy</th>
+                    <th>Cancelled Bookings</th>
+                    <th>No-Show Passengers</th>
+                    <th>Popularity Tier</th>
+                </tr>
+            `;
+
+            secBody.innerHTML = '';
+            routeMetrics.forEach((r, idx) => {
+                let popLabel = 'Standard';
+                let popClass = 'scheduled';
+                if (idx === 0 && r.passengerVolume > 0) {
+                    popLabel = 'Most Popular';
+                    popClass = 'active';
+                } else if (idx === routeMetrics.length - 1 && routeMetrics.length > 1) {
+                    popLabel = 'Least Popular';
+                    popClass = 'pending';
+                }
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>#${idx + 1}</td>
+                    <td><strong>${r.routeName}</strong></td>
+                    <td>${r.routeCode}</td>
+                    <td>${r.tripsCount}</td>
+                    <td><strong>${r.passengerVolume}</strong></td>
+                    <td>${r.avgOccupancy.toFixed(1)}%</td>
+                    <td>${r.cancelledBookings}</td>
+                    <td>${r.noShowPassengers}</td>
+                    <td><span class="status ${popClass}">${popLabel}</span></td>
+                `;
+                secBody.appendChild(tr);
+            });
         }
 
-        // Export active visible report table to a downloadable CSV file
+        // Export active visible report tables to CSV
         function exportToCSV() {
             const type = document.getElementById('reportTypeSelect').value;
-            const rows = document.querySelectorAll('table tr');
-            let csv = [];
+            const csvLines = [];
 
-            for (let i = 0; i < rows.length; i++) {
-                let row = [], cols = rows[i].querySelectorAll('td, th');
-                for (let j = 0; j < cols.length; j++) {
-                    row.push('"' + cols[j].innerText.replace(/"/g, '""') + '"');
-                }
-                csv.push(row.join(','));
+            const primaryTitle = document.getElementById('primaryTableTitle').innerText;
+            csvLines.push(`"${primaryTitle}"`);
+            document.querySelectorAll('#primaryReportTable tr').forEach(tr => {
+                const cols = Array.from(tr.querySelectorAll('td, th')).map(
+                    col => '"' + col.innerText.replace(/"/g, '""') + '"'
+                );
+                if (cols.length) csvLines.push(cols.join(','));
+            });
+
+            const secSection = document.getElementById('secondaryReportSection');
+            if (secSection && secSection.style.display !== 'none') {
+                csvLines.push('');
+                const secTitle = document.getElementById('secondaryTableTitle').innerText;
+                csvLines.push(`"${secTitle}"`);
+                document.querySelectorAll('#secondaryReportTable tr').forEach(tr => {
+                    const cols = Array.from(tr.querySelectorAll('td, th')).map(
+                        col => '"' + col.innerText.replace(/"/g, '""') + '"'
+                    );
+                    if (cols.length) csvLines.push(cols.join(','));
+                });
             }
 
-            const csvFile = new Blob([csv.join('\n')], { type: 'text/csv' });
+            const csvFile = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
             const downloadLink = document.createElement('a');
-            downloadLink.download = `bus_system_${type}_report_${new Date().toISOString().slice(0,10)}.csv`;
+            downloadLink.download = `bus_system_${type}_${getTodayLocalISO()}.csv`;
             downloadLink.href = window.URL.createObjectURL(csvFile);
             downloadLink.style.display = 'none';
             document.body.appendChild(downloadLink);
